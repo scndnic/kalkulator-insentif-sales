@@ -1,4 +1,4 @@
-import { Calculator, Moon, Sun, Save, Printer, RotateCcw, Settings } from 'lucide-react';
+import { Calculator, Moon, Sun, Download, RotateCcw, Settings } from 'lucide-react';
 
 const MONTHS = [
   'Januari','Februari','Maret','April','Mei','Juni',
@@ -12,10 +12,9 @@ interface HeaderProps {
   onMonthChange: (month: number) => void;
   onYearChange: (year: number) => void;
   onToggleDarkMode: () => void;
-  onPrint: () => void;
+  onDownloadPdf: () => void;
   onReset: () => void;
   onManagePackages: () => void;
-  lastSaved: string;
 }
 
 export default function Header({
@@ -25,10 +24,9 @@ export default function Header({
   onMonthChange,
   onYearChange,
   onToggleDarkMode,
-  onPrint,
+  onDownloadPdf,
   onReset,
   onManagePackages,
-  lastSaved,
 }: HeaderProps) {
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
@@ -49,11 +47,9 @@ export default function Header({
                 <span className="text-xs bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded-full font-medium hidden sm:inline-flex">
                   Estimasi
                 </span>
-                {lastSaved && (
-                  <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 hidden sm:flex">
-                    <Save className="w-3 h-3" /> Tersimpan
-                  </span>
-                )}
+                <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline-flex">
+                  Sesi sementara
+                </span>
               </div>
             </div>
           </div>
@@ -88,11 +84,11 @@ export default function Header({
                 <Settings className="w-4 h-4" />
               </button>
               <button
-                onClick={onPrint}
-                title="Cetak"
+                onClick={onDownloadPdf}
+                title="Download PDF"
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
               >
-                <Printer className="w-4 h-4" />
+                <Download className="w-4 h-4" />
               </button>
               <button
                 onClick={onReset}

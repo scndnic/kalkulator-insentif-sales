@@ -9,12 +9,12 @@ import TargetSimulator from './components/TargetSimulator';
 import IncentiveReference from './components/IncentiveReference';
 import PackageManager from './components/PackageManager';
 import ConfirmDialog from './components/ConfirmDialog';
-import { useLocalStorage } from './hooks/useLocalStorage';
+import AdminLoginDialog from './components/AdminLoginDialog';
 import { DEFAULT_PACKAGES } from './data/incentives';
 import { SaleItem, IncentivePackage } from './types/incentive';
 import { getTier } from './utils/getTier';
 import { calculateTotalIncentive, calculateTotalSA } from './utils/calculateIncentive';
-import { formatCurrency } from './utils/formatCurrency';
+import { generateSalesPdf } from './utils/generateSalesPdf';
 
 const MONTHS = [
   'Januari','Februari','Maret','April','Mei','Juni',
@@ -27,26 +27,30 @@ function generateId() {
 
 function App() {
   const now = new Date();
-  const [darkMode, setDarkMode] = useLocalStorage<boolean>(
-    'kalkulator-dark-mode',
-    window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
-  const [packages, setPackages] = useLocalStorage<IncentivePackage[]>('kalkulator-packages', DEFAULT_PACKAGES);
-  const [sales, setSales] = useLocalStorage<SaleItem[]>('kalkulator-sales', []);
-  const [selectedMonth, setSelectedMonth] = useLocalStorage<number>('kalkulator-month', now.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useLocalStorage<number>('kalkulator-year', now.getFullYear());
-  const [lastSaved, setLastSaved] = useState('');
+  const [darkMode, setDarkMode] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [packages, setPackages] = useState<IncentivePackage[]>(DEFAULT_PACKAGES);
+  const [sales, setSales] = useState<SaleItem[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [showPackageManager, setShowPackageManager] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [pendingAdminAction, setPendingAdminAction] = useState<'packages' | 'reference' | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
-  // Auto-save indicator
   useEffect(() => {
-    setLastSaved(new Date().toLocaleTimeString('id-ID'));
-  }, [sales, packages, selectedMonth, selectedYear]);
+    [
+      'kalkulator-dark-mode',
+      'kalkulator-packages',
+      'kalkulator-sales',
+      'kalkulator-month',
+      'kalkulator-year',
+    ].forEach((key) => window.localStorage.removeItem(key));
+  }, []);
 
   const totalSA = calculateTotalSA(sales);
   const activeTier = getTier(totalSA);
@@ -93,8 +97,33 @@ function App() {
     document.getElementById('add-form')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Print styles injected
-  const printResult = () => window.print();
+  const downloadPdf = () => {
+    generateSalesPdf({
+      sales,
+      packages,
+      activeTier,
+      totalSA,
+      totalIncentive,
+      selectedMonthName: MONTHS[selectedMonth - 1],
+      selectedYear,
+    });
+  };
+
+  const requestAdminAccess = (action: 'packages' | 'reference') => {
+    if (isAdminUnlocked) {
+      if (action === 'packages') setShowPackageManager(true);
+      return;
+    }
+    setPendingAdminAction(action);
+    setShowAdminLogin(true);
+  };
+
+  const handleAdminSuccess = () => {
+    setIsAdminUnlocked(true);
+    setShowAdminLogin(false);
+    if (pendingAdminAction === 'packages') setShowPackageManager(true);
+    setPendingAdminAction(null);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans">
@@ -105,20 +134,10 @@ function App() {
         onMonthChange={setSelectedMonth}
         onYearChange={setSelectedYear}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
-        onPrint={printResult}
+        onDownloadPdf={downloadPdf}
         onReset={() => setShowResetConfirm(true)}
-        onManagePackages={() => setShowPackageManager(true)}
-        lastSaved={lastSaved}
+        onManagePackages={() => requestAdminAccess('packages')}
       />
-
-      {/* Print header */}
-      <div className="hidden print:block p-8">
-        <h1 className="text-2xl font-bold">Kalkulator Insentif Sales</h1>
-        <p className="text-gray-600 mt-1">Periode: {MONTHS[selectedMonth - 1]} {selectedYear}</p>
-        <p className="text-gray-600">Total SA: {totalSA} | Tier: {activeTier} | Total Insentif: {formatCurrency(totalIncentive)}</p>
-        <p className="text-gray-600">Pembayaran 80%: {formatCurrency(Math.round(totalIncentive * 0.8))} | Pembayaran 20%: {formatCurrency(Math.round(totalIncentive * 0.2))}</p>
-        <p className="text-gray-500 text-sm mt-1">Dicetak: {new Date().toLocaleString('id-ID')}</p>
-      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 sm:space-y-6 pb-24 sm:pb-6">
         {/* Period info */}
@@ -156,7 +175,12 @@ function App() {
           <TargetSimulator sales={sales} packages={packages} totalSA={totalSA} totalIncentive={totalIncentive} />
         </div>
 
-        <IncentiveReference packages={packages} activeTier={activeTier} />
+        <IncentiveReference
+          packages={packages}
+          activeTier={activeTier}
+          isAdminUnlocked={isAdminUnlocked}
+          onRequestAccess={() => requestAdminAccess('reference')}
+        />
       </main>
 
       {/* Mobile bottom bar */}
@@ -168,10 +192,10 @@ function App() {
           + Tambah
         </button>
         <button
-          onClick={printResult}
+          onClick={downloadPdf}
           className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium"
         >
-          Cetak
+          PDF
         </button>
         <button
           onClick={() => setShowResetConfirm(true)}
@@ -193,11 +217,19 @@ function App() {
       <ConfirmDialog
         isOpen={showResetConfirm}
         title="Reset Perhitungan?"
-        message="Semua data penjualan akan dihapus. Data paket tidak akan terpengaruh."
+        message="Semua data penjualan sesi ini akan dihapus. Data juga otomatis kosong lagi saat halaman direfresh."
         confirmLabel="Ya, Reset"
         onConfirm={handleReset}
         onCancel={() => setShowResetConfirm(false)}
         danger
+      />
+      <AdminLoginDialog
+        isOpen={showAdminLogin}
+        onSuccess={handleAdminSuccess}
+        onCancel={() => {
+          setShowAdminLogin(false);
+          setPendingAdminAction(null);
+        }}
       />
     </div>
   );

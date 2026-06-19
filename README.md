@@ -12,8 +12,9 @@ Aplikasi web untuk menghitung estimasi insentif sales MyRepublic berdasarkan tot
 - ✅ Kelola data paket (tambah, edit, hapus)
 - ✅ Dark mode (mengikuti preferensi sistem)
 - ✅ Responsif untuk HP dan desktop
-- ✅ Cetak / simpan PDF
-- ✅ Data tersimpan otomatis di LocalStorage
+- ✅ Download PDF hasil estimasi yang rapi
+- ✅ Pengaturan paket dan tabel insentif dikunci password admin sederhana
+- ✅ Data perhitungan hanya berlaku selama sesi halaman dan reset saat refresh
 
 ## Cara Menjalankan
 
@@ -23,6 +24,14 @@ npm run dev
 ```
 
 Buka di browser: `http://localhost:5173`
+
+Password admin default: `admin123`
+
+Untuk mengganti password saat build/deploy, set environment variable:
+
+```bash
+VITE_ADMIN_PASSWORD=password-baru npm run build
+```
 
 ## Build Production
 
@@ -60,8 +69,6 @@ src/
 │   └── EmptyState.tsx      # State kosong
 ├── data/
 │   └── incentives.ts       # Data awal 18 paket
-├── hooks/
-│   └── useLocalStorage.ts  # Custom hook LocalStorage
 ├── utils/
 │   ├── calculateIncentive.ts
 │   ├── formatCurrency.ts
