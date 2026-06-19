@@ -39,9 +39,9 @@ export default function Header({
             <div className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-brand-200 dark:shadow-brand-900">
               <Calculator className="w-5 h-5 text-white" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 hidden lg:block">
               <h1 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight truncate">
-                Kalkulator Insentif Sales
+                Kalkulator Insentif Sales MyRepublic
               </h1>
               <div className="flex items-center gap-2">
                 <span className="text-xs bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded-full font-medium hidden sm:inline-flex">
