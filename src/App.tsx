@@ -207,6 +207,7 @@ function App() {
         onYearChange={setSelectedYear}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
         onDownloadPdf={downloadPdf}
+        onSharePdf={() => setShowShareDialog(true)}
         onReset={() => setShowResetConfirm(true)}
         onLogoClick={() => requestAdminAccess('packages')}
       />
