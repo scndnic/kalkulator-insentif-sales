@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Lock, Search } from 'lucide-react';
 import { IncentivePackage, IncentiveTier } from '../types/incentive';
 import { getTierLabel } from '../utils/getTier';
 import { formatCurrency } from '../utils/formatCurrency';
+import CustomSelect from './CustomSelect';
 
 interface IncentiveReferenceProps {
   packages: IncentivePackage[];
@@ -47,6 +48,10 @@ export default function IncentiveReference({ packages, activeTier, isAdminUnlock
   const filtered = packages.filter((pkg) =>
     pkg.name.toLowerCase().includes(search.toLowerCase())
   );
+  const tierOptions = [
+    { value: 'all', label: 'Semua Tier' },
+    ...TIERS.map((tier) => ({ value: tier, label: getTierLabel(tier) })),
+  ];
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden print:hidden">
@@ -71,16 +76,12 @@ export default function IncentiveReference({ packages, activeTier, isAdminUnlock
                 className="w-full pl-9 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
-            <select
+            <CustomSelect
               value={filterTier}
-              onChange={(e) => setFilterTier(e.target.value as IncentiveTier | 'all')}
-              className="border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="all">Semua Tier</option>
-              {TIERS.map((t) => (
-                <option key={t} value={t}>{getTierLabel(t)}</option>
-              ))}
-            </select>
+              options={tierOptions}
+              onChange={(nextValue) => setFilterTier(nextValue as IncentiveTier | 'all')}
+              className="w-full sm:w-44"
+            />
           </div>
 
           <div className="overflow-x-auto">

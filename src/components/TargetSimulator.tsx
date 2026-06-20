@@ -4,6 +4,7 @@ import { IncentivePackage, SaleItem } from '../types/incentive';
 import { getTier, getTierLabel, getNextTierInfo } from '../utils/getTier';
 import { calculateTotalIncentive, calculateTotalSA } from '../utils/calculateIncentive';
 import { formatCurrency } from '../utils/formatCurrency';
+import CustomSelect from './CustomSelect';
 
 interface TargetSimulatorProps {
   sales: SaleItem[];
@@ -24,6 +25,10 @@ export default function TargetSimulator({ sales, packages, totalSA, totalIncenti
 
   const { nextTier, saNeeded, nextTierLabel } = getNextTierInfo(totalSA);
   const activeTier = getTier(totalSA);
+  const packageOptions = [
+    { value: '', label: '-- Pilih paket simulasi --' },
+    ...packages.map((pkg) => ({ value: pkg.id, label: pkg.name })),
+  ];
 
   const addSimItem = () => {
     if (!simPackageId || !simQty || Number(simQty) < 1) return;
@@ -88,16 +93,13 @@ export default function TargetSimulator({ sales, packages, totalSA, totalIncenti
 
       {/* Sim input */}
       <div className="flex flex-col sm:flex-row gap-2 mb-3">
-        <select
+        <CustomSelect
           value={simPackageId}
-          onChange={(e) => setSimPackageId(e.target.value)}
-          className="flex-1 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-        >
-          <option value="">-- Pilih paket simulasi --</option>
-          {packages.map((pkg) => (
-            <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
-          ))}
-        </select>
+          options={packageOptions}
+          onChange={setSimPackageId}
+          placeholder="-- Pilih paket simulasi --"
+          className="flex-1"
+        />
         <input
           type="number"
           min={1}

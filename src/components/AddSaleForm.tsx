@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { IncentivePackage } from '../types/incentive';
+import CustomSelect from './CustomSelect';
 
 interface AddSaleFormProps {
   packages: IncentivePackage[];
@@ -12,6 +13,10 @@ export default function AddSaleForm({ packages, onAdd, onLoadSample }: AddSaleFo
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [quantity, setQuantity] = useState<number | ''>(1);
   const [error, setError] = useState('');
+  const packageOptions = [
+    { value: '', label: '-- Pilih paket --' },
+    ...packages.map((pkg) => ({ value: pkg.id, label: pkg.name })),
+  ];
 
   const handleAdd = () => {
     if (!selectedPackageId) {
@@ -50,16 +55,12 @@ export default function AddSaleForm({ packages, onAdd, onLoadSample }: AddSaleFo
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1">
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Pilih Paket</label>
-          <select
+          <CustomSelect
             value={selectedPackageId}
-            onChange={(e) => { setSelectedPackageId(e.target.value); setError(''); }}
-            className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            <option value="">-- Pilih paket --</option>
-            {packages.map((pkg) => (
-              <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
-            ))}
-          </select>
+            options={packageOptions}
+            onChange={(nextValue) => { setSelectedPackageId(nextValue); setError(''); }}
+            placeholder="-- Pilih paket --"
+          />
         </div>
 
         <div className="w-full sm:w-36">

@@ -1,4 +1,5 @@
 import { Calculator, Moon, Sun, Download, RotateCcw, Settings } from 'lucide-react';
+import CustomSelect from './CustomSelect';
 
 const MONTHS = [
   'Januari','Februari','Maret','April','Mei','Juni',
@@ -29,6 +30,8 @@ export default function Header({
   onManagePackages,
 }: HeaderProps) {
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
+  const monthOptions = MONTHS.map((month, index) => ({ value: String(index + 1), label: month }));
+  const yearOptions = years.map((year) => ({ value: String(year), label: String(year) }));
 
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40 print:hidden">
@@ -56,24 +59,20 @@ export default function Header({
 
           {/* Period + Actions */}
           <div className="flex items-center gap-2">
-            <select
-              value={selectedMonth}
-              onChange={(e) => onMonthChange(Number(e.target.value))}
-              className="text-xs sm:text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              {MONTHS.map((m, i) => (
-                <option key={i} value={i + 1}>{m}</option>
-              ))}
-            </select>
-            <select
-              value={selectedYear}
-              onChange={(e) => onYearChange(Number(e.target.value))}
-              className="text-xs sm:text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              {years.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+            <CustomSelect
+              value={String(selectedMonth)}
+              options={monthOptions}
+              onChange={(value) => onMonthChange(Number(value))}
+              className="w-[92px] sm:w-28"
+              buttonClassName="min-h-9 rounded-lg px-3 py-1.5 text-xs sm:text-sm"
+            />
+            <CustomSelect
+              value={String(selectedYear)}
+              options={yearOptions}
+              onChange={(value) => onYearChange(Number(value))}
+              className="w-[78px] sm:w-24"
+              buttonClassName="min-h-9 rounded-lg px-3 py-1.5 text-xs sm:text-sm"
+            />
 
             <div className="flex items-center gap-1 ml-1">
               <button
