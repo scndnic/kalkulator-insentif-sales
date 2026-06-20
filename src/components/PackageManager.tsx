@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Plus, Trash2, RotateCcw, Edit2, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, Plus, Trash2, RotateCcw, Edit2, Check, GripVertical } from 'lucide-react';
 import { IncentivePackage } from '../types/incentive';
 import { DEFAULT_PACKAGES } from '../data/incentives';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -33,6 +33,10 @@ export default function PackageManager({ packages, onUpdate, onClose, usedPackag
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [addError, setAddError] = useState('');
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const activeDragId = useRef<string | null>(null);
+  const lastDragOverId = useRef<string | null>(null);
 
   const startEdit = (pkg: IncentivePackage) => {
     setEditingId(pkg.id);
@@ -73,6 +77,58 @@ export default function PackageManager({ packages, onUpdate, onClose, usedPackag
     onUpdate(DEFAULT_PACKAGES);
     setConfirmReset(false);
   };
+
+  const movePackage = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const fromIndex = packages.findIndex((pkg) => pkg.id === fromId);
+    const toIndex = packages.findIndex((pkg) => pkg.id === toId);
+    if (fromIndex < 0 || toIndex < 0) return;
+
+    const nextPackages = [...packages];
+    const [movedPackage] = nextPackages.splice(fromIndex, 1);
+    nextPackages.splice(toIndex, 0, movedPackage);
+    onUpdate(nextPackages);
+  };
+
+  const handleDragStart = (event: React.PointerEvent<HTMLButtonElement>, id: string) => {
+    event.preventDefault();
+    activeDragId.current = id;
+    lastDragOverId.current = null;
+    setDraggedId(id);
+  };
+
+  const handleDragEnd = () => {
+    activeDragId.current = null;
+    setDraggedId(null);
+    setDragOverId(null);
+    lastDragOverId.current = null;
+  };
+
+  useEffect(() => {
+    if (!draggedId) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const targetRow = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest<HTMLTableRowElement>('tr[data-package-id]');
+      const targetId = targetRow?.dataset.packageId;
+      const sourceId = activeDragId.current;
+      if (!sourceId || !targetId || sourceId === targetId || lastDragOverId.current === targetId) return;
+      lastDragOverId.current = targetId;
+      setDragOverId(targetId);
+      movePackage(sourceId, targetId);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handleDragEnd, { once: true });
+    window.addEventListener('pointercancel', handleDragEnd, { once: true });
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handleDragEnd);
+      window.removeEventListener('pointercancel', handleDragEnd);
+    };
+  }, [draggedId, packages]);
 
   return (
     <>
@@ -160,17 +216,38 @@ export default function PackageManager({ packages, onUpdate, onClose, usedPackag
                   const isEditing = editingId === pkg.id;
                   const ev = editValues;
                   return (
-                    <tr key={pkg.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 ${isEditing ? 'bg-brand-50 dark:bg-brand-900/10' : ''}`}>
+                    <tr
+                      key={pkg.id}
+                      data-package-id={pkg.id}
+                      className={`transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
+                        isEditing ? 'bg-brand-50 dark:bg-brand-900/10' : ''
+                      } ${
+                        draggedId === pkg.id ? 'opacity-60' : ''
+                      } ${
+                        dragOverId === pkg.id && draggedId !== pkg.id ? 'bg-brand-50 dark:bg-brand-900/20' : ''
+                      }`}
+                    >
                       <td className="px-5 py-2">
-                        {isEditing ? (
-                          <input
-                            value={ev.name ?? pkg.name}
-                            onChange={(e) => setEditValues({ ...ev, name: e.target.value })}
-                            className="border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                          />
-                        ) : (
-                          <span className="font-medium text-gray-900 dark:text-white">{pkg.name}</span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onPointerDown={(event) => !isEditing && handleDragStart(event, pkg.id)}
+                            disabled={isEditing}
+                            title="Geser untuk ubah urutan"
+                            className="flex h-7 w-7 flex-shrink-0 touch-none cursor-grab items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                          >
+                            <GripVertical className="h-4 w-4" />
+                          </button>
+                          {isEditing ? (
+                            <input
+                              value={ev.name ?? pkg.name}
+                              onChange={(e) => setEditValues({ ...ev, name: e.target.value })}
+                              className="border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            />
+                          ) : (
+                            <span className="font-medium text-gray-900 dark:text-white">{pkg.name}</span>
+                          )}
+                        </div>
                       </td>
                       {(['productPrice', 'tier0To5', 'tier6To10', 'tier11To14', 'tier15Plus'] as const).map((f, fi) => (
                         <td key={f} className={`px-3 py-2 text-right ${fi === 0 ? 'hidden sm:table-cell' : fi === 1 ? 'hidden sm:table-cell' : ''}`}>
