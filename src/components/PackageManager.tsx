@@ -25,29 +25,75 @@ const EMPTY_PKG: Omit<IncentivePackage, 'id'> = {
   tier15Plus: 0,
 };
 
+const PACKAGE_FORM_FIELDS: Array<{
+  key: keyof Omit<IncentivePackage, 'id' | 'name'>;
+  label: string;
+  helper: string;
+}> = [
+  { key: 'productPrice', label: 'Harga Produk', helper: 'Harga sebelum PPN' },
+  { key: 'tier0To5', label: '0-5 SA', helper: 'Insentif per SA' },
+  { key: 'tier6To10', label: '6-10 SA', helper: 'Insentif per SA' },
+  { key: 'tier11To14', label: '11-14 SA', helper: 'Insentif per SA' },
+  { key: 'tier15Plus', label: '>=15 SA', helper: 'Insentif per SA' },
+];
+
 export default function PackageManager({ packages, onUpdate, onClose, usedPackageIds }: PackageManagerProps) {
+  const [formMode, setFormMode] = useState<'add' | 'edit' | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<Partial<IncentivePackage>>({});
-  const [newPkg, setNewPkg] = useState<Omit<IncentivePackage, 'id'>>(EMPTY_PKG);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [formValues, setFormValues] = useState<Omit<IncentivePackage, 'id'>>(EMPTY_PKG);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [addError, setAddError] = useState('');
+  const [formError, setFormError] = useState('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const activeDragId = useRef<string | null>(null);
   const lastDragOverId = useRef<string | null>(null);
 
-  const startEdit = (pkg: IncentivePackage) => {
-    setEditingId(pkg.id);
-    setEditValues({ ...pkg });
+  const startAdd = () => {
+    setFormMode('add');
+    setEditingId(null);
+    setFormValues(EMPTY_PKG);
+    setFormError('');
   };
 
-  const saveEdit = (id: string) => {
-    if (!editValues.name?.trim()) return;
-    onUpdate(packages.map((p) => (p.id === id ? { ...p, ...editValues } as IncentivePackage : p)));
+  const startEdit = (pkg: IncentivePackage) => {
+    setFormMode('edit');
+    setEditingId(pkg.id);
+    setFormValues({
+      name: pkg.name,
+      productPrice: pkg.productPrice,
+      tier0To5: pkg.tier0To5,
+      tier6To10: pkg.tier6To10,
+      tier11To14: pkg.tier11To14,
+      tier15Plus: pkg.tier15Plus,
+    });
+    setFormError('');
+  };
+
+  const closeForm = () => {
+    setFormMode(null);
     setEditingId(null);
-    setEditValues({});
+    setFormValues(EMPTY_PKG);
+    setFormError('');
+  };
+
+  const handleSubmitForm = () => {
+    const cleanValues = { ...formValues, name: formValues.name.trim() };
+    if (!cleanValues.name) {
+      setFormError('Nama paket tidak boleh kosong.');
+      return;
+    }
+    if (PACKAGE_FORM_FIELDS.some(({ key }) => cleanValues[key] < 0)) {
+      setFormError('Harga dan nominal insentif tidak boleh negatif.');
+      return;
+    }
+
+    if (formMode === 'edit' && editingId) {
+      onUpdate(packages.map((p) => (p.id === editingId ? { id: p.id, ...cleanValues } : p)));
+    } else {
+      onUpdate([...packages, { id: generateId(), ...cleanValues }]);
+    }
+    closeForm();
   };
 
   const handleDelete = (id: string) => {
@@ -64,18 +110,10 @@ export default function PackageManager({ packages, onUpdate, onClose, usedPackag
     setConfirmDelete(null);
   };
 
-  const handleAdd = () => {
-    if (!newPkg.name.trim()) { setAddError('Nama paket tidak boleh kosong.'); return; }
-    if (newPkg.productPrice < 0) { setAddError('Harga tidak boleh negatif.'); return; }
-    setAddError('');
-    onUpdate([...packages, { id: generateId(), ...newPkg }]);
-    setNewPkg(EMPTY_PKG);
-    setShowAddForm(false);
-  };
-
   const handleReset = () => {
     onUpdate(DEFAULT_PACKAGES);
     setConfirmReset(false);
+    closeForm();
   };
 
   const movePackage = (fromId: string, toId: string) => {
@@ -134,72 +172,97 @@ export default function PackageManager({ packages, onUpdate, onClose, usedPackag
     <>
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative bg-white dark:bg-gray-900 w-full sm:max-w-3xl max-h-[90vh] sm:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl border border-gray-100 dark:border-gray-800">
+        <div className="relative bg-white dark:bg-gray-900 w-full sm:max-w-4xl lg:max-w-5xl max-h-[90vh] sm:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl border border-gray-100 dark:border-gray-800">
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
-            <h2 className="font-bold text-gray-900 dark:text-white">Kelola Data Paket</h2>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-base font-bold leading-tight text-gray-900 dark:text-white">Kelola Data Paket</h2>
+            <div className="flex items-center justify-between gap-2 sm:justify-end">
               <button
                 onClick={() => setConfirmReset(true)}
-                className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 font-medium px-3 py-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                className="flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20 sm:px-3"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                Reset Default
+                <span>Reset Default</span>
               </button>
               <button
-                onClick={() => { setShowAddForm(!showAddForm); setAddError(''); }}
-                className="flex items-center gap-1.5 text-xs bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg transition-colors font-medium"
+                onClick={startAdd}
+                className="flex min-h-10 items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-brand-700"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Tambah Paket
               </button>
-              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
+              <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">
                 <X className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          {/* Add form */}
-          {showAddForm && (
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 bg-brand-50 dark:bg-brand-900/20">
-              <p className="text-xs font-semibold text-brand-700 dark:text-brand-300 mb-3">Paket Baru</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="col-span-2 sm:col-span-1">
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Nama Paket *</p>
+          {/* Package form */}
+          {formMode && (
+            <div className="border-b border-gray-100 bg-gray-50 px-5 py-4 dark:border-gray-800 dark:bg-gray-950/50">
+              <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {formMode === 'edit' ? 'Edit Paket' : 'Tambah Paket'}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Isi data paket dan nominal insentif sesuai tier SA.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                <label className="lg:col-span-2">
+                  <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama Paket</span>
                   <input
                     type="text"
-                    value={newPkg.name}
-                    onChange={(e) => setNewPkg({ ...newPkg, name: e.target.value })}
-                    className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="Nama paket"
+                    value={formValues.name}
+                    onChange={(e) => setFormValues({ ...formValues, name: e.target.value })}
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                    placeholder="Contoh: Fast 150"
                   />
-                </div>
-                {(['productPrice', 'tier0To5', 'tier6To10', 'tier11To14', 'tier15Plus'] as const).map((f) => (
-                  <div key={f}>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                      {f === 'productPrice' ? 'Harga Produk' : f === 'tier0To5' ? '0–5 SA' : f === 'tier6To10' ? '6–10 SA' : f === 'tier11To14' ? '11–14 SA' : '≥15 SA'}
-                    </p>
+                </label>
+
+                {PACKAGE_FORM_FIELDS.map(({ key, label, helper }) => (
+                  <label key={key}>
+                    <span className="mb-1 flex items-center justify-between gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+                      <span>{label}</span>
+                      <span className="font-normal text-gray-400 dark:text-gray-500">{helper}</span>
+                    </span>
                     <input
                       type="number"
                       min={0}
-                      value={newPkg[f]}
-                      onChange={(e) => setNewPkg({ ...newPkg, [f]: Number(e.target.value) })}
-                      className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      value={formValues[key]}
+                      onChange={(e) => setFormValues({ ...formValues, [key]: Number(e.target.value) })}
+                      className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                     />
-                  </div>
+                  </label>
                 ))}
               </div>
-              {addError && <p className="text-red-500 text-xs mt-2">{addError}</p>}
-              <div className="flex gap-2 mt-3">
-                <button onClick={handleAdd} className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-colors">Simpan</button>
-                <button onClick={() => { setShowAddForm(false); setAddError(''); }} className="border border-gray-200 dark:border-gray-700 px-4 py-1.5 rounded-lg text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Batal</button>
+
+              {formError && <p className="mt-3 text-xs font-medium text-red-500">{formError}</p>}
+
+              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  onClick={closeForm}
+                  className="h-11 rounded-xl border border-gray-200 px-4 text-sm font-medium text-gray-600 transition-colors hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleSubmitForm}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+                >
+                  <Check className="h-4 w-4" />
+                  Simpan Paket
+                </button>
               </div>
             </div>
           )}
 
           {/* Package list */}
-          <div className="overflow-y-auto flex-1">
-            <table className="w-full text-xs">
+          <div className="flex-1 overflow-auto">
+            <table className="min-w-[760px] w-full text-xs">
               <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                 <tr>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600 dark:text-gray-400">Paket</th>
@@ -214,7 +277,6 @@ export default function PackageManager({ packages, onUpdate, onClose, usedPackag
               <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                 {packages.map((pkg) => {
                   const isEditing = editingId === pkg.id;
-                  const ev = editValues;
                   return (
                     <tr
                       key={pkg.id}
@@ -231,59 +293,42 @@ export default function PackageManager({ packages, onUpdate, onClose, usedPackag
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onPointerDown={(event) => !isEditing && handleDragStart(event, pkg.id)}
+                            onPointerDown={(event) => handleDragStart(event, pkg.id)}
                             disabled={isEditing}
                             title="Geser untuk ubah urutan"
                             className="flex h-7 w-7 flex-shrink-0 touch-none cursor-grab items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800 dark:hover:text-gray-200"
                           >
                             <GripVertical className="h-4 w-4" />
                           </button>
-                          {isEditing ? (
-                            <input
-                              value={ev.name ?? pkg.name}
-                              onChange={(e) => setEditValues({ ...ev, name: e.target.value })}
-                              className="border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                            />
-                          ) : (
-                            <span className="font-medium text-gray-900 dark:text-white">{pkg.name}</span>
-                          )}
+                          <span className="font-medium text-gray-900 dark:text-white">{pkg.name}</span>
                         </div>
                       </td>
                       {(['productPrice', 'tier0To5', 'tier6To10', 'tier11To14', 'tier15Plus'] as const).map((f, fi) => (
                         <td key={f} className={`px-3 py-2 text-right ${fi === 0 ? 'hidden sm:table-cell' : fi === 1 ? 'hidden sm:table-cell' : ''}`}>
-                          {isEditing ? (
-                            <input
-                              type="number"
-                              min={0}
-                              value={ev[f] ?? pkg[f]}
-                              onChange={(e) => setEditValues({ ...ev, [f]: Number(e.target.value) })}
-                              className="border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs w-24 text-right bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                            />
-                          ) : (
-                            <span className="text-gray-600 dark:text-gray-400">{formatCurrency(pkg[f])}</span>
-                          )}
+                          <span className="text-gray-600 dark:text-gray-400">{formatCurrency(pkg[f])}</span>
                         </td>
                       ))}
                       <td className="px-3 py-2 text-center">
-                        {isEditing ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <button onClick={() => saveEdit(pkg.id)} className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg">
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-1">
-                            <button onClick={() => startEdit(pkg)} className="p-1 text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg">
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => handleDelete(pkg.id)} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => startEdit(pkg)}
+                            className={`p-1 rounded-lg ${
+                              isEditing
+                                ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/20'
+                                : 'text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20'
+                            }`}
+                            title="Edit paket"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(pkg.id)}
+                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                            title="Hapus paket"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
