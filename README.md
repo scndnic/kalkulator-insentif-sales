@@ -14,6 +14,7 @@ Aplikasi web untuk menghitung estimasi insentif sales MyRepublic berdasarkan tot
 - ✅ Responsif untuk HP dan desktop
 - ✅ Download PDF hasil estimasi yang rapi
 - ✅ Pengaturan paket dan tabel insentif dikunci password admin sederhana
+- ✅ Sinkron data paket admin antar perangkat via Supabase
 - ✅ Data perhitungan hanya berlaku selama sesi halaman dan reset saat refresh
 
 ## Cara Menjalankan
@@ -32,6 +33,22 @@ Untuk mengganti password saat build/deploy, set environment variable:
 ```bash
 VITE_ADMIN_PASSWORD=password-baru npm run build
 ```
+
+## Setup Supabase
+
+Data paket admin bisa disimpan di Supabase agar perubahan dari laptop dan HP sama. Jika env Supabase belum diisi, aplikasi tetap berjalan memakai penyimpanan lokal browser.
+
+1. Buat project di Supabase.
+2. Buka SQL Editor, jalankan isi file `supabase-schema.sql`.
+3. Ambil Project URL dan anon public key dari Project Settings → API.
+4. Set environment variable berikut di local atau Vercel:
+
+```bash
+VITE_SUPABASE_URL=https://project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=anon-public-key
+```
+
+Setelah env aktif, paket admin otomatis diambil dari Supabase. Jika tabel masih kosong, aplikasi akan mengisi tabel dari data paket lokal/default saat pertama kali dibuka.
 
 ## Build Production
 

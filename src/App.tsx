@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Header from './components/Header';
 import SummaryCards from './components/SummaryCards';
 import AddSaleForm from './components/AddSaleForm';
@@ -16,6 +16,7 @@ import { SaleItem, IncentivePackage } from './types/incentive';
 import { getTier } from './utils/getTier';
 import { calculateTotalIncentive, calculateTotalSA } from './utils/calculateIncentive';
 import { generateSalesPdf } from './utils/generateSalesPdf';
+import { isSupabaseConfigured, savePackagesToSupabase, seedPackagesIfEmpty } from './services/packageStore';
 
 const MONTHS = [
   'Januari','Februari','Maret','April','Mei','Juni',
@@ -45,6 +46,7 @@ function loadStoredPackages() {
 
 function App() {
   const now = new Date();
+  const hasLoadedRemotePackages = useRef(!isSupabaseConfigured);
   const [darkMode, setDarkMode] = useState(false);
   const [packages, setPackages] = useState<IncentivePackage[]>(loadStoredPackages);
   const [sales, setSales] = useState<SaleItem[]>([]);
@@ -71,7 +73,39 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let cancelled = false;
+    seedPackagesIfEmpty(loadStoredPackages())
+      .then((remotePackages) => {
+        if (cancelled || !remotePackages || remotePackages.length === 0) return;
+        setPackages(remotePackages);
+        window.localStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(remotePackages));
+      })
+      .catch(() => {
+        // Keep the local package cache usable if Supabase is temporarily unavailable.
+      })
+      .finally(() => {
+        if (!cancelled) hasLoadedRemotePackages.current = true;
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(packages));
+
+    if (!isSupabaseConfigured || !hasLoadedRemotePackages.current) return;
+
+    const saveTimer = window.setTimeout(() => {
+      savePackagesToSupabase(packages).catch(() => {
+        // Local cache remains the fallback when the network is offline.
+      });
+    }, 400);
+
+    return () => window.clearTimeout(saveTimer);
   }, [packages]);
 
   const totalSA = calculateTotalSA(sales);
