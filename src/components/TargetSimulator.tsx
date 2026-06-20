@@ -5,6 +5,7 @@ import { getTier, getTierLabel, getNextTierInfo } from '../utils/getTier';
 import { calculateTotalIncentive, calculateTotalSA } from '../utils/calculateIncentive';
 import { formatCurrency } from '../utils/formatCurrency';
 import CustomSelect from './CustomSelect';
+import { calculatePriceWithPpn } from '../utils/pricing';
 
 interface TargetSimulatorProps {
   sales: SaleItem[];
@@ -27,7 +28,11 @@ export default function TargetSimulator({ sales, packages, totalSA, totalIncenti
   const activeTier = getTier(totalSA);
   const packageOptions = [
     { value: '', label: '-- Pilih paket simulasi --' },
-    ...packages.map((pkg) => ({ value: pkg.id, label: pkg.name })),
+    ...packages.map((pkg) => ({
+      value: pkg.id,
+      label: pkg.name,
+      rightLabel: formatCurrency(calculatePriceWithPpn(pkg.productPrice)),
+    })),
   ];
 
   const addSimItem = () => {

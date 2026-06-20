@@ -10,6 +10,7 @@ import IncentiveReference from './components/IncentiveReference';
 import PackageManager from './components/PackageManager';
 import ConfirmDialog from './components/ConfirmDialog';
 import AdminLoginDialog from './components/AdminLoginDialog';
+import ShareSalesDialog from './components/ShareSalesDialog';
 import { DEFAULT_PACKAGES } from './data/incentives';
 import { SaleItem, IncentivePackage } from './types/incentive';
 import { getTier } from './utils/getTier';
@@ -27,7 +28,7 @@ function generateId() {
 
 function App() {
   const now = new Date();
-  const [darkMode, setDarkMode] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [darkMode, setDarkMode] = useState(false);
   const [packages, setPackages] = useState<IncentivePackage[]>(DEFAULT_PACKAGES);
   const [sales, setSales] = useState<SaleItem[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -36,6 +37,7 @@ function App() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [pendingAdminAction, setPendingAdminAction] = useState<'packages' | 'reference' | null>(null);
 
   useEffect(() => {
@@ -109,6 +111,56 @@ function App() {
     });
   };
 
+  const handleSharePdf = async (salespersonName: string, salesCode: string) => {
+    const pdfBlob = generateSalesPdf({
+      sales,
+      packages,
+      activeTier,
+      totalSA,
+      totalIncentive,
+      selectedMonthName: MONTHS[selectedMonth - 1],
+      selectedYear,
+      salespersonName,
+      salesCode,
+      output: 'blob',
+    });
+    if (!pdfBlob) return;
+
+    const safeName = salespersonName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'sales';
+    const file = new File([pdfBlob], `insentif-sales-${safeName}-${salesCode}.pdf`, { type: 'application/pdf' });
+    const shareData = {
+      title: 'Kalkulator Insentif Sales MyRepublic',
+      text: `Estimasi insentif ${salespersonName} (${salesCode})`,
+      files: [file],
+    };
+    const shareNavigator = navigator as Navigator & {
+      canShare?: (data: ShareData) => boolean;
+      share?: (data: ShareData) => Promise<void>;
+    };
+
+    const downloadSharedPdf = () => {
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      link.click();
+      URL.revokeObjectURL(url);
+    };
+
+    setShowShareDialog(false);
+    if (shareNavigator.share && (!shareNavigator.canShare || shareNavigator.canShare(shareData))) {
+      try {
+        await shareNavigator.share(shareData);
+        return;
+      } catch {
+        downloadSharedPdf();
+        return;
+      }
+    }
+
+    downloadSharedPdf();
+  };
+
   const requestAdminAccess = (action: 'packages' | 'reference') => {
     if (isAdminUnlocked) {
       if (action === 'packages') setShowPackageManager(true);
@@ -178,27 +230,26 @@ function App() {
         <IncentiveReference
           packages={packages}
           activeTier={activeTier}
-          isAdminUnlocked={isAdminUnlocked}
         />
       </main>
 
       {/* Mobile and tablet bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-4 py-3 flex gap-3 lg:hidden print:hidden z-30">
         <button
-          onClick={scrollToForm}
-          className="flex-1 flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
-        >
-          + Tambah
-        </button>
-        <button
           onClick={downloadPdf}
-          className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium"
+          className="flex-1 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700"
         >
           Simpan
         </button>
         <button
+          onClick={() => setShowShareDialog(true)}
+          className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          Bagikan
+        </button>
+        <button
           onClick={() => setShowResetConfirm(true)}
-          className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium"
+          className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           Reset
         </button>
@@ -228,6 +279,13 @@ function App() {
         onCancel={() => {
           setShowAdminLogin(false);
           setPendingAdminAction(null);
+        }}
+      />
+      <ShareSalesDialog
+        isOpen={showShareDialog}
+        onCancel={() => setShowShareDialog(false)}
+        onSubmit={({ salespersonName, salesCode }) => {
+          void handleSharePdf(salespersonName, salesCode);
         }}
       />
     </div>

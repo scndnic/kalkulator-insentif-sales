@@ -1,40 +1,22 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Lock, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { IncentivePackage, IncentiveTier } from '../types/incentive';
 import { getTierLabel } from '../utils/getTier';
 import { formatCurrency } from '../utils/formatCurrency';
 import CustomSelect from './CustomSelect';
+import { calculatePriceWithPpn } from '../utils/pricing';
 
 interface IncentiveReferenceProps {
   packages: IncentivePackage[];
   activeTier: IncentiveTier;
-  isAdminUnlocked: boolean;
 }
 
 const TIERS: IncentiveTier[] = ['tier0To5', 'tier6To10', 'tier11To14', 'tier15Plus'];
 
-export default function IncentiveReference({ packages, activeTier, isAdminUnlocked }: IncentiveReferenceProps) {
+export default function IncentiveReference({ packages, activeTier }: IncentiveReferenceProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filterTier, setFilterTier] = useState<IncentiveTier | 'all'>('all');
-
-  if (!isAdminUnlocked) {
-    return (
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-4 sm:p-6 print:hidden">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-            <Lock className="h-4 w-4" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Data Insentif Paket</h2>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Tabel nominal insentif dikunci untuk admin. Perhitungan sales tetap bisa digunakan tanpa menyimpan data di browser.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const filtered = packages.filter((pkg) =>
     pkg.name.toLowerCase().includes(search.toLowerCase())
@@ -50,7 +32,10 @@ export default function IncentiveReference({ packages, activeTier, isAdminUnlock
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between px-4 sm:px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       >
-        <h2 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Tabel Referensi Insentif</h2>
+        <div className="text-left">
+          <h2 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Tabel Referensi Insentif</h2>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Data read-only. Harga PPN dihitung dengan PPN 11%.</p>
+        </div>
         {isOpen ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
       </button>
 
@@ -80,7 +65,8 @@ export default function IncentiveReference({ packages, activeTier, isAdminUnlock
               <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                 <tr>
                   <th className="text-left px-4 sm:px-6 py-3 text-xs font-semibold text-gray-600 dark:text-gray-400">Paket</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-400">Harga</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">Harga Produk</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 dark:text-gray-400 whitespace-nowrap">Setelah PPN 11%</th>
                   {TIERS.filter((t) => filterTier === 'all' || t === filterTier).map((t) => (
                     <th
                       key={t}
@@ -101,6 +87,7 @@ export default function IncentiveReference({ packages, activeTier, isAdminUnlock
                   <tr key={pkg.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                     <td className="px-4 sm:px-6 py-2.5 font-medium text-gray-900 dark:text-white whitespace-nowrap">{pkg.name}</td>
                     <td className="px-4 py-2.5 text-right text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatCurrency(pkg.productPrice)}</td>
+                    <td className="px-4 py-2.5 text-right font-medium text-gray-900 dark:text-white whitespace-nowrap">{formatCurrency(calculatePriceWithPpn(pkg.productPrice))}</td>
                     {TIERS.filter((t) => filterTier === 'all' || t === filterTier).map((t) => (
                       <td
                         key={t}

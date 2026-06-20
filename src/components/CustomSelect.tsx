@@ -4,6 +4,7 @@ import { Check, ChevronDown } from 'lucide-react';
 export interface SelectOption {
   value: string;
   label: string;
+  rightLabel?: string;
 }
 
 interface CustomSelectProps {
@@ -52,8 +53,15 @@ export default function CustomSelect({
         }}
         className={`flex min-h-10 w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-900 shadow-sm transition-all hover:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:border-brand-500 ${buttonClassName}`}
       >
-        <span className={`block min-w-0 flex-1 truncate ${selectedOption ? '' : 'text-gray-400 dark:text-gray-500'}`}>
-          {selectedOption?.label || placeholder}
+        <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
+          <span className={`block min-w-0 truncate ${selectedOption ? '' : 'text-gray-400 dark:text-gray-500'}`}>
+            {selectedOption?.label || placeholder}
+          </span>
+          {selectedOption?.rightLabel && (
+            <span className="hidden flex-shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400 sm:inline">
+              {selectedOption.rightLabel}
+            </span>
+          )}
         </span>
         <ChevronDown className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -76,13 +84,18 @@ export default function CustomSelect({
                   onChange(option.value);
                   setIsOpen(false);
                 }}
-                className={`flex min-h-9 w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                className={`flex min-h-9 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   isSelected
                     ? 'bg-brand-600 text-white'
                     : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
                 }`}
               >
                 <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                {option.rightLabel && (
+                  <span className={`flex-shrink-0 text-xs font-semibold ${isSelected ? 'text-white/85' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {option.rightLabel}
+                  </span>
+                )}
                 {isSelected && <Check className="h-4 w-4 flex-shrink-0" />}
               </button>
             );

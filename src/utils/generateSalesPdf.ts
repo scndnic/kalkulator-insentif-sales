@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { IncentivePackage, IncentiveTier, SaleItem } from '../types/incentive';
 import { formatCurrency } from './formatCurrency';
 import { getTierLabel } from './getTier';
+import { calculatePriceWithPpn } from './pricing';
 
 interface GenerateSalesPdfOptions {
   sales: SaleItem[];
@@ -12,6 +13,9 @@ interface GenerateSalesPdfOptions {
   totalIncentive: number;
   selectedMonthName: string;
   selectedYear: number;
+  salespersonName?: string;
+  salesCode?: string;
+  output?: 'save' | 'blob';
 }
 
 function sanitizeFilename(value: string) {
@@ -26,6 +30,9 @@ export function generateSalesPdf({
   totalIncentive,
   selectedMonthName,
   selectedYear,
+  salespersonName,
+  salesCode,
+  output = 'save',
 }: GenerateSalesPdfOptions) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -44,6 +51,9 @@ export function generateSalesPdf({
   doc.setFontSize(10);
   doc.text(`Periode ${selectedMonthName} ${selectedYear}`, margin, 23);
   doc.text(`Dibuat ${generatedAt}`, margin, 29);
+  if (salespersonName || salesCode) {
+    doc.text(`Sales: ${salespersonName || '-'}${salesCode ? ` | SC: ${salesCode}` : ''}`, pageWidth - margin, 23, { align: 'right' });
+  }
 
   const summaryTop = 44;
   const cardWidth = (pageWidth - margin * 2 - 9) / 4;
@@ -77,6 +87,7 @@ export function generateSalesPdf({
       String(index + 1),
       selectedPackage?.name ?? 'Paket tidak ditemukan',
       formatCurrency(selectedPackage?.productPrice ?? 0),
+      formatCurrency(calculatePriceWithPpn(selectedPackage?.productPrice ?? 0)),
       `${item.quantity} SA`,
       formatCurrency(incentivePerSA),
       formatCurrency(incentivePerSA * item.quantity),
@@ -85,9 +96,9 @@ export function generateSalesPdf({
 
   autoTable(doc, {
     startY: 76,
-    head: [['No', 'Paket', 'Harga Produk', 'Jumlah', 'Insentif / SA', 'Subtotal']],
-    body: rows.length ? rows : [['-', 'Belum ada data penjualan', '-', '-', '-', '-']],
-    foot: [['', 'Total', '', `${totalSA} SA`, '', formatCurrency(totalIncentive)]],
+    head: [['No', 'Paket', 'Harga Produk', 'Harga + PPN', 'Jumlah', 'Insentif / SA', 'Subtotal']],
+    body: rows.length ? rows : [['-', 'Belum ada data penjualan', '-', '-', '-', '-', '-']],
+    foot: [['', 'Total', '', '', `${totalSA} SA`, '', formatCurrency(totalIncentive)]],
     theme: 'grid',
     headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
     footStyles: { fillColor: [243, 244, 246], textColor: [17, 24, 39], fontStyle: 'bold' },
@@ -95,9 +106,10 @@ export function generateSalesPdf({
     columnStyles: {
       0: { halign: 'center', cellWidth: 10 },
       2: { halign: 'right' },
-      3: { halign: 'center' },
-      4: { halign: 'right' },
+      3: { halign: 'right' },
+      4: { halign: 'center' },
       5: { halign: 'right' },
+      6: { halign: 'right' },
     },
     margin: { left: margin, right: margin },
   });
@@ -127,5 +139,10 @@ export function generateSalesPdf({
     doc.text('Estimasi insentif. Validasi akhir mengikuti kebijakan perusahaan.', margin, 290);
   }
 
-  doc.save(`insentif-sales-${sanitizeFilename(selectedMonthName)}-${selectedYear}.pdf`);
+  const filename = `insentif-sales-${sanitizeFilename(salespersonName || selectedMonthName)}-${selectedYear}.pdf`;
+  if (output === 'blob') {
+    return doc.output('blob');
+  }
+  doc.save(filename);
+  return undefined;
 }

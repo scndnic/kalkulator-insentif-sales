@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { IncentivePackage } from '../types/incentive';
 import CustomSelect from './CustomSelect';
+import { formatCurrency } from '../utils/formatCurrency';
+import { calculatePriceWithPpn } from '../utils/pricing';
 
 interface AddSaleFormProps {
   packages: IncentivePackage[];
@@ -15,7 +17,11 @@ export default function AddSaleForm({ packages, onAdd, onLoadSample }: AddSaleFo
   const [error, setError] = useState('');
   const packageOptions = [
     { value: '', label: '-- Pilih paket --' },
-    ...packages.map((pkg) => ({ value: pkg.id, label: pkg.name })),
+    ...packages.map((pkg) => ({
+      value: pkg.id,
+      label: pkg.name,
+      rightLabel: formatCurrency(calculatePriceWithPpn(pkg.productPrice)),
+    })),
   ];
 
   const handleAdd = () => {
