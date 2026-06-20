@@ -1,4 +1,4 @@
-import { Calculator, Moon, Sun, Download, RotateCcw, Share2 } from 'lucide-react';
+import { Moon, Sun, Download, RotateCcw, Share2 } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 
 const MONTHS = [
@@ -45,9 +45,14 @@ export default function Header({
               type="button"
               onClick={onLogoClick}
               title="Kalkulator Insentif Sales MyRepublic"
-              className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-brand-200 dark:shadow-brand-900 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900"
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-white shadow-md shadow-brand-200 ring-1 ring-gray-100 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-white dark:bg-gray-900 dark:shadow-brand-900 dark:ring-gray-800 dark:focus:ring-offset-gray-900"
             >
-              <Calculator className="w-5 h-5 text-white" />
+              <img
+                src="/icon-192.png"
+                alt=""
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
             </button>
             <div className="min-w-0 hidden lg:block">
               <h1 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight truncate">
