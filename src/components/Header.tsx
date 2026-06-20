@@ -1,4 +1,4 @@
-import { Calculator, Moon, Sun, Download, RotateCcw, Settings } from 'lucide-react';
+import { Calculator, Moon, Sun, Download, RotateCcw } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 
 const MONTHS = [
@@ -15,7 +15,7 @@ interface HeaderProps {
   onToggleDarkMode: () => void;
   onDownloadPdf: () => void;
   onReset: () => void;
-  onManagePackages: () => void;
+  onLogoClick: () => void;
 }
 
 export default function Header({
@@ -27,7 +27,7 @@ export default function Header({
   onToggleDarkMode,
   onDownloadPdf,
   onReset,
-  onManagePackages,
+  onLogoClick,
 }: HeaderProps) {
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
   const monthOptions = MONTHS.map((month, index) => ({ value: String(index + 1), label: month }));
@@ -39,9 +39,14 @@ export default function Header({
         <div className="flex items-center justify-between h-16 gap-3">
           {/* Brand */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-brand-200 dark:shadow-brand-900">
+            <button
+              type="button"
+              onClick={onLogoClick}
+              title="Kalkulator Insentif Sales MyRepublic"
+              className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-brand-200 dark:shadow-brand-900 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900"
+            >
               <Calculator className="w-5 h-5 text-white" />
-            </div>
+            </button>
             <div className="min-w-0 hidden lg:block">
               <h1 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight truncate">
                 Kalkulator Insentif Sales MyRepublic
@@ -76,23 +81,16 @@ export default function Header({
 
             <div className="flex items-center gap-1 ml-1">
               <button
-                onClick={onManagePackages}
-                title="Kelola Paket"
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-              <button
                 onClick={onDownloadPdf}
                 title="Download PDF"
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
+                className="hidden lg:flex p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
               >
                 <Download className="w-4 h-4" />
               </button>
               <button
                 onClick={onReset}
                 title="Reset"
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
+                className="hidden lg:flex p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>

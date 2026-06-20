@@ -9,12 +9,11 @@ interface IncentiveReferenceProps {
   packages: IncentivePackage[];
   activeTier: IncentiveTier;
   isAdminUnlocked: boolean;
-  onRequestAccess: () => void;
 }
 
 const TIERS: IncentiveTier[] = ['tier0To5', 'tier6To10', 'tier11To14', 'tier15Plus'];
 
-export default function IncentiveReference({ packages, activeTier, isAdminUnlocked, onRequestAccess }: IncentiveReferenceProps) {
+export default function IncentiveReference({ packages, activeTier, isAdminUnlocked }: IncentiveReferenceProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filterTier, setFilterTier] = useState<IncentiveTier | 'all'>('all');
@@ -22,24 +21,16 @@ export default function IncentiveReference({ packages, activeTier, isAdminUnlock
   if (!isAdminUnlocked) {
     return (
       <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-4 sm:p-6 print:hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-              <Lock className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Data Insentif Paket</h2>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Tabel nominal insentif dikunci untuk admin. Perhitungan sales tetap bisa digunakan tanpa menyimpan data di browser.
-              </p>
-            </div>
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            <Lock className="h-4 w-4" />
           </div>
-          <button
-            onClick={onRequestAccess}
-            className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700"
-          >
-            Masuk Admin
-          </button>
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">Data Insentif Paket</h2>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Tabel nominal insentif dikunci untuk admin. Perhitungan sales tetap bisa digunakan tanpa menyimpan data di browser.
+            </p>
+          </div>
         </div>
       </div>
     );

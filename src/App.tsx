@@ -136,10 +136,10 @@ function App() {
         onToggleDarkMode={() => setDarkMode(!darkMode)}
         onDownloadPdf={downloadPdf}
         onReset={() => setShowResetConfirm(true)}
-        onManagePackages={() => requestAdminAccess('packages')}
+        onLogoClick={() => requestAdminAccess('packages')}
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 sm:space-y-6 pb-24 sm:pb-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 sm:space-y-6 pb-24 lg:pb-6">
         {/* Period info */}
         <div className="flex items-center justify-between print:hidden">
           <div>
@@ -179,12 +179,11 @@ function App() {
           packages={packages}
           activeTier={activeTier}
           isAdminUnlocked={isAdminUnlocked}
-          onRequestAccess={() => requestAdminAccess('reference')}
         />
       </main>
 
-      {/* Mobile bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-4 py-3 flex gap-3 sm:hidden print:hidden z-30">
+      {/* Mobile and tablet bottom bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-4 py-3 flex gap-3 lg:hidden print:hidden z-30">
         <button
           onClick={scrollToForm}
           className="flex-1 flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
@@ -195,7 +194,7 @@ function App() {
           onClick={downloadPdf}
           className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium"
         >
-          PDF
+          Simpan
         </button>
         <button
           onClick={() => setShowResetConfirm(true)}
