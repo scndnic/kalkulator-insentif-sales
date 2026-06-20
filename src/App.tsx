@@ -22,14 +22,31 @@ const MONTHS = [
   'Juli','Agustus','September','Oktober','November','Desember'
 ];
 
+const PACKAGE_STORAGE_KEY = 'kalkulator-packages';
+
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
+}
+
+function loadStoredPackages() {
+  try {
+    const storedPackages = window.localStorage.getItem(PACKAGE_STORAGE_KEY);
+    if (!storedPackages) return DEFAULT_PACKAGES;
+
+    const parsed = JSON.parse(storedPackages) as IncentivePackage[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_PACKAGES;
+
+    return parsed;
+  } catch {
+    window.localStorage.removeItem(PACKAGE_STORAGE_KEY);
+    return DEFAULT_PACKAGES;
+  }
 }
 
 function App() {
   const now = new Date();
   const [darkMode, setDarkMode] = useState(false);
-  const [packages, setPackages] = useState<IncentivePackage[]>(DEFAULT_PACKAGES);
+  const [packages, setPackages] = useState<IncentivePackage[]>(loadStoredPackages);
   const [sales, setSales] = useState<SaleItem[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -47,12 +64,15 @@ function App() {
   useEffect(() => {
     [
       'kalkulator-dark-mode',
-      'kalkulator-packages',
       'kalkulator-sales',
       'kalkulator-month',
       'kalkulator-year',
     ].forEach((key) => window.localStorage.removeItem(key));
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(packages));
+  }, [packages]);
 
   const totalSA = calculateTotalSA(sales);
   const activeTier = getTier(totalSA);
