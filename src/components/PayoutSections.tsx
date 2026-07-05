@@ -60,26 +60,32 @@ export default function PayoutSections({ monthly, quarterly }: PayoutSectionsPro
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800">
-          <div className="min-w-[520px]">
-          <div className="grid grid-cols-[1.3fr_0.6fr_0.7fr_0.7fr_1fr] bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-500 dark:bg-gray-950/40 dark:text-gray-400">
+          <div className="min-w-[680px]">
+          <div className="grid grid-cols-[1.2fr_0.55fr_0.65fr_1.2fr_0.95fr] bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-500 dark:bg-gray-950/40 dark:text-gray-400">
             <span>Periode</span>
             <span className="text-center">SA</span>
             <span className="text-center">Tier</span>
-            <span className="text-center">Bayar</span>
+            <span className="text-right">Perkalian</span>
             <span className="text-right">Nominal</span>
           </div>
           {quarterly.rows.map((row) => (
             <div
               key={`${row.periodId}-${row.percentage}`}
-              className="grid grid-cols-[1.3fr_0.6fr_0.7fr_0.7fr_1fr] items-center border-t border-gray-100 px-3 py-3 text-xs dark:border-gray-800"
+              className="grid grid-cols-[1.2fr_0.55fr_0.65fr_1.2fr_0.95fr] items-center border-t border-gray-100 px-3 py-3 text-xs dark:border-gray-800"
             >
               <span className="font-medium text-gray-800 dark:text-gray-200">{row.label}</span>
               <span className="text-center text-gray-500 dark:text-gray-400">{row.totalSA} SA</span>
               <span className="text-center font-semibold text-emerald-700 dark:text-emerald-300">{row.tierLabel}</span>
-              <span className="text-center text-gray-500 dark:text-gray-400">{row.percentage}%</span>
+              <span className="text-right text-gray-500 dark:text-gray-400">
+                {formatCurrency(row.baseAmount)} x {row.percentage}%
+              </span>
               <span className="text-right font-bold text-gray-900 dark:text-white">{formatCurrency(row.amount)}</span>
             </div>
           ))}
+          <div className="flex items-center justify-between border-t border-gray-100 px-3 py-3 dark:border-gray-800">
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Total Dasar Upress Triwulan</span>
+            <span className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(quarterly.totalQuarterUpressBase)}</span>
+          </div>
           <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-3 py-3 dark:border-gray-800 dark:bg-gray-950/40">
             <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Total Upress Terjadwal</span>
             <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(quarterly.totalAmount)}</span>

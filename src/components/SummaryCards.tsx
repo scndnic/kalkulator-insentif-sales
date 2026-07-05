@@ -5,7 +5,9 @@ interface SummaryCardsProps {
   currentMonthSA: number;
   quarterSA: number;
   totalIncentive: number;
+  incentiveDetail: string;
   totalUpress: number;
+  upressDetail: string;
   totalIncome: number;
 }
 
@@ -13,13 +15,16 @@ export default function SummaryCards({
   currentMonthSA,
   quarterSA,
   totalIncentive,
+  incentiveDetail,
   totalUpress,
+  upressDetail,
   totalIncome,
 }: SummaryCardsProps) {
   const cards = [
     {
       label: 'SA Paid Bulan Ini',
       value: `${currentMonthSA} SA`,
+      detail: 'Input bulan aktif',
       icon: TrendingUp,
       bg: 'bg-blue-50 dark:bg-blue-900/20',
       iconColor: 'text-blue-600 dark:text-blue-400',
@@ -27,6 +32,7 @@ export default function SummaryCards({
     {
       label: 'Total SA Triwulan',
       value: `${quarterSA} SA`,
+      detail: 'Akumulasi Q berjalan',
       icon: Layers,
       bg: 'bg-indigo-50 dark:bg-indigo-900/20',
       iconColor: 'text-indigo-600 dark:text-indigo-400',
@@ -34,6 +40,7 @@ export default function SummaryCards({
     {
       label: 'Total Insentif',
       value: formatCurrency(totalIncentive),
+      detail: incentiveDetail,
       icon: DollarSign,
       bg: 'bg-emerald-50 dark:bg-emerald-900/20',
       iconColor: 'text-emerald-600 dark:text-emerald-400',
@@ -41,6 +48,7 @@ export default function SummaryCards({
     {
       label: 'Total Upress',
       value: formatCurrency(totalUpress),
+      detail: upressDetail,
       icon: Trophy,
       bg: 'bg-amber-50 dark:bg-amber-900/20',
       iconColor: 'text-amber-600 dark:text-amber-400',
@@ -48,6 +56,7 @@ export default function SummaryCards({
     {
       label: 'Total Pendapatan',
       value: formatCurrency(totalIncome),
+      detail: 'Insentif + upress',
       icon: Wallet,
       bg: 'bg-brand-50 dark:bg-brand-900/20',
       iconColor: 'text-brand-600 dark:text-brand-400',
@@ -74,6 +83,9 @@ export default function SummaryCards({
           </div>
           <p className="truncate text-lg font-bold text-gray-900 dark:text-white sm:text-xl">
             {card.value}
+          </p>
+          <p className="mt-1 truncate text-[11px] font-medium text-gray-500 dark:text-gray-400">
+            {card.detail}
           </p>
         </div>
       ))}

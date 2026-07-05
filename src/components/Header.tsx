@@ -69,7 +69,7 @@ export default function Header({
                   Estimasi
                 </span>
                 <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline-flex">
-                  Sesi sementara
+                  {salesLoggedIn ? `Online: ${salesLabel}` : 'Sesi sementara'}
                 </span>
               </div>
             </div>

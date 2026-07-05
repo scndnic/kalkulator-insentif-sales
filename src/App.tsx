@@ -13,11 +13,13 @@ import ShareSalesDialog from './components/ShareSalesDialog';
 import SalesAuthDialog from './components/SalesAuthDialog';
 import SalesAccountDialog from './components/SalesAccountDialog';
 import PayoutSections from './components/PayoutSections';
+import Toast from './components/Toast';
 import { DEFAULT_PACKAGES, DEFAULT_UPRESS_RATES } from './data/incentives';
 import { SaleItem, IncentivePackage, UpressRate } from './types/incentive';
 import { getTier } from './utils/getTier';
 import { calculateTotalIncentive, calculateTotalSA } from './utils/calculateIncentive';
 import { generateSalesPdf } from './utils/generateSalesPdf';
+import { formatCurrency } from './utils/formatCurrency';
 import { savePackagesToSupabase, seedPackagesIfEmpty } from './services/packageStore';
 import { saveUpressRatesToSupabase, seedUpressRatesIfEmpty } from './services/upressStore';
 import { isSupabaseConfigured } from './services/supabaseClient';
@@ -100,6 +102,7 @@ function App() {
   const [deferredSourceSales, setDeferredSourceSales] = useState<SaleItem[]>([]);
   const [isSalesSyncing, setIsSalesSyncing] = useState(false);
   const [salesSyncMessage, setSalesSyncMessage] = useState('');
+  const [saveToastMessage, setSaveToastMessage] = useState('');
   const [pendingAdminAction, setPendingAdminAction] = useState<'packages' | 'reference' | null>(null);
 
   useEffect(() => {
@@ -248,6 +251,13 @@ function App() {
     [currentQuarterSalesByPeriod, selectedMonth, selectedYear, upressRates],
   );
   const totalIncome = monthlyPayout.monthlyIncome + quarterlyPayout.totalAmount;
+
+  useEffect(() => {
+    if (!saveToastMessage) return;
+
+    const timer = window.setTimeout(() => setSaveToastMessage(''), 3500);
+    return () => window.clearTimeout(timer);
+  }, [saveToastMessage]);
 
   const markSalesDraft = useCallback(() => {
     if (salesUserId) setSalesSyncMessage('Ada perubahan belum disimpan');
@@ -460,6 +470,7 @@ function App() {
       setSalesUserId(null);
       setSalesProfile(null);
       setSalesSyncMessage('');
+      setSaveToastMessage('');
       setQuarterSalesByPeriod({});
       setDeferredSourceSales([]);
       setShowSalesAccount(false);
@@ -479,6 +490,7 @@ function App() {
       await saveSalesEntry(salesUserId, selectedPeriodId, sales, packages);
       setQuarterSalesByPeriod((prev) => ({ ...prev, [selectedPeriodId]: sales }));
       setSalesSyncMessage(`Tersimpan untuk ${MONTHS[selectedMonth - 1]} ${selectedYear}`);
+      setSaveToastMessage(`Data ${MONTHS[selectedMonth - 1]} ${selectedYear} sudah disimpan ke database.`);
     } catch (error) {
       setSalesSyncMessage(error instanceof Error ? error.message : 'Gagal menyimpan data sales.');
     } finally {
@@ -545,8 +557,10 @@ function App() {
         <SummaryCards
           currentMonthSA={totalSA}
           quarterSA={quarterlyPayout.totalQuarterSA}
-          totalIncentive={totalIncentive}
+          totalIncentive={monthlyPayout.monthlyIncome}
+          incentiveDetail={`80% bulan ini + 20% ${monthlyPayout.deferredSourcePeriod.label}`}
           totalUpress={quarterlyPayout.totalAmount}
+          upressDetail={`Dasar ${formatCurrency(quarterlyPayout.totalQuarterUpressBase)}`}
           totalIncome={totalIncome}
         />
 
@@ -659,6 +673,7 @@ function App() {
         }}
         onClose={() => setShowSalesAccount(false)}
       />
+      <Toast message={saveToastMessage} onClose={() => setSaveToastMessage('')} />
     </div>
   );
 }
