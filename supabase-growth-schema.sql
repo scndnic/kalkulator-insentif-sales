@@ -111,6 +111,16 @@ create table if not exists public.payout_components (
   created_at timestamptz not null default now()
 );
 
+insert into public.periods (id, year, month, quarter)
+select
+  to_char(make_date(year_value, month_value, 1), 'YYYY-MM'),
+  year_value,
+  month_value,
+  ((month_value - 1) / 3) + 1
+from generate_series(2025, 2028) as years(year_value)
+cross join generate_series(1, 12) as months(month_value)
+on conflict (id) do nothing;
+
 create or replace function public.set_updated_at()
 returns trigger as $$
 begin
@@ -134,6 +144,40 @@ as $$
       and is_active = true
   );
 $$;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.sales_profiles (id, name, sales_code, role)
+  values (
+    new.id,
+    coalesce(
+      nullif(new.raw_user_meta_data ->> 'name', ''),
+      nullif(new.raw_user_meta_data ->> 'full_name', ''),
+      split_part(new.email, '@', 1),
+      'Sales'
+    ),
+    nullif(new.raw_user_meta_data ->> 'sales_code', ''),
+    'sales'
+  )
+  on conflict (id) do update
+  set
+    name = excluded.name,
+    sales_code = coalesce(public.sales_profiles.sales_code, excluded.sales_code),
+    updated_at = now();
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_user();
 
 drop trigger if exists set_sales_profiles_updated_at on public.sales_profiles;
 create trigger set_sales_profiles_updated_at
@@ -180,6 +224,12 @@ alter table public.upress_tiers enable row level security;
 alter table public.upress_payout_rules enable row level security;
 alter table public.payouts enable row level security;
 alter table public.payout_components enable row level security;
+
+drop policy if exists "Sales can create own profile" on public.sales_profiles;
+create policy "Sales can create own profile"
+on public.sales_profiles for insert
+to authenticated
+with check (id = auth.uid() and role = 'sales');
 
 drop policy if exists "Sales can read own profile" on public.sales_profiles;
 create policy "Sales can read own profile"
@@ -342,3 +392,45 @@ to authenticated
 using (public.current_user_is_admin())
 with check (public.current_user_is_admin());
 
+insert into public.incentive_rules (
+  name,
+  effective_from,
+  current_month_percentage,
+  deferred_percentage,
+  deferred_offset_months,
+  is_active
+)
+select 'Default 80/20', '2026-01', 80, 20, 2, true
+where exists (select 1 from public.periods where id = '2026-01')
+  and not exists (select 1 from public.incentive_rules where name = 'Default 80/20');
+
+with inserted_rule as (
+  insert into public.upress_rules (name, effective_from, quarter_mode, is_active)
+  select 'Default Triwulan', '2026-01', 'calendar_quarter', true
+  where exists (select 1 from public.periods where id = '2026-01')
+    and not exists (select 1 from public.upress_rules where name = 'Default Triwulan')
+  returning id
+),
+selected_rule as (
+  select id from inserted_rule
+  union all
+  select id from public.upress_rules where name = 'Default Triwulan'
+  limit 1
+)
+insert into public.upress_payout_rules (
+  rule_id,
+  quarter_month_index,
+  source_month_index,
+  percentage
+)
+select selected_rule.id, payout_rule.quarter_month_index, payout_rule.source_month_index, payout_rule.percentage
+from selected_rule
+cross join (
+  values
+    (1, 1, 50),
+    (2, 2, 50),
+    (3, 1, 50),
+    (3, 2, 50),
+    (3, 3, 100)
+) as payout_rule(quarter_month_index, source_month_index, percentage)
+on conflict (rule_id, quarter_month_index, source_month_index) do nothing;
