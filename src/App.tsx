@@ -169,7 +169,12 @@ function App() {
   const activeTier = getTier(totalSA);
   const totalIncentive = calculateTotalIncentive(sales, packages);
 
+  const markSalesDraft = useCallback(() => {
+    if (salesUserId) setSalesSyncMessage('Ada perubahan belum disimpan');
+  }, [salesUserId]);
+
   const handleAddSale = useCallback((packageId: string, quantity: number) => {
+    markSalesDraft();
     setSales((prev) => {
       const existing = prev.findIndex((s) => s.packageId === packageId);
       if (existing >= 0) {
@@ -177,23 +182,27 @@ function App() {
       }
       return [...prev, { id: generateId(), packageId, quantity }];
     });
-  }, [setSales]);
+  }, [markSalesDraft, setSales]);
 
   const handleQuantityChange = useCallback((id: string, quantity: number) => {
     if (quantity < 1) return;
+    markSalesDraft();
     setSales((prev) => prev.map((s) => s.id === id ? { ...s, quantity } : s));
-  }, [setSales]);
+  }, [markSalesDraft, setSales]);
 
   const handleDelete = useCallback((id: string) => {
+    markSalesDraft();
     setSales((prev) => prev.filter((s) => s.id !== id));
-  }, [setSales]);
+  }, [markSalesDraft, setSales]);
 
   const handleReset = () => {
+    markSalesDraft();
     setSales([]);
     setShowResetConfirm(false);
   };
 
   const handleLoadSample = () => {
+    markSalesDraft();
     const sampleSales: SaleItem[] = [];
     const jet20 = packages.find((p) => p.id === 'jet20');
     const neo100 = packages.find((p) => p.id === 'neo100');
