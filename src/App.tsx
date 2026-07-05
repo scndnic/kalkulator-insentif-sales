@@ -11,12 +11,25 @@ import PackageManager from './components/PackageManager';
 import ConfirmDialog from './components/ConfirmDialog';
 import AdminLoginDialog from './components/AdminLoginDialog';
 import ShareSalesDialog from './components/ShareSalesDialog';
+import SalesAuthDialog from './components/SalesAuthDialog';
+import SalesAccountPanel from './components/SalesAccountPanel';
 import { DEFAULT_PACKAGES } from './data/incentives';
 import { SaleItem, IncentivePackage } from './types/incentive';
 import { getTier } from './utils/getTier';
 import { calculateTotalIncentive, calculateTotalSA } from './utils/calculateIncentive';
 import { generateSalesPdf } from './utils/generateSalesPdf';
-import { isSupabaseConfigured, savePackagesToSupabase, seedPackagesIfEmpty } from './services/packageStore';
+import { savePackagesToSupabase, seedPackagesIfEmpty } from './services/packageStore';
+import { isSupabaseConfigured } from './services/supabaseClient';
+import {
+  SalesProfile,
+  fetchSalesProfile,
+  getCurrentUser,
+  onAuthChange,
+  signInSales,
+  signOutSales,
+  signUpSales,
+} from './services/authStore';
+import { getPeriodId, loadSalesEntry, saveSalesEntry } from './services/salesEntryStore';
 
 const MONTHS = [
   'Januari','Februari','Maret','April','Mei','Juni',
@@ -57,6 +70,11 @@ function App() {
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showSalesAuth, setShowSalesAuth] = useState(false);
+  const [salesUserId, setSalesUserId] = useState<string | null>(null);
+  const [salesProfile, setSalesProfile] = useState<SalesProfile | null>(null);
+  const [isSalesSyncing, setIsSalesSyncing] = useState(false);
+  const [salesSyncMessage, setSalesSyncMessage] = useState('');
   const [pendingAdminAction, setPendingAdminAction] = useState<'packages' | 'reference' | null>(null);
 
   useEffect(() => {
@@ -71,6 +89,45 @@ function App() {
       'kalkulator-year',
     ].forEach((key) => window.localStorage.removeItem(key));
   }, []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let cancelled = false;
+    getCurrentUser().then((user) => {
+      if (!cancelled) setSalesUserId(user?.id ?? null);
+    });
+
+    const unsubscribe = onAuthChange((user) => {
+      setSalesUserId(user?.id ?? null);
+      if (!user) {
+        setSalesProfile(null);
+        setSalesSyncMessage('');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!salesUserId) return;
+
+    let cancelled = false;
+    fetchSalesProfile(salesUserId)
+      .then((profile) => {
+        if (!cancelled) setSalesProfile(profile);
+      })
+      .catch(() => {
+        if (!cancelled) setSalesProfile(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [salesUserId]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -148,6 +205,7 @@ function App() {
   };
 
   const usedPackageIds = sales.map((s) => s.packageId);
+  const selectedPeriodId = getPeriodId(selectedYear, selectedMonth);
 
   const scrollToForm = () => {
     document.getElementById('add-form')?.scrollIntoView({ behavior: 'smooth' });
@@ -231,6 +289,67 @@ function App() {
     setPendingAdminAction(null);
   };
 
+  const handleSalesSignIn = async (email: string, password: string) => {
+    const user = await signInSales(email, password);
+    setSalesUserId(user?.id ?? null);
+  };
+
+  const handleSalesSignUp = async (email: string, password: string, name: string, salesCode: string) => {
+    await signUpSales(email, password, name, salesCode);
+  };
+
+  const handleSalesSignOut = async () => {
+    setIsSalesSyncing(true);
+    try {
+      await signOutSales();
+      setSalesUserId(null);
+      setSalesProfile(null);
+      setSalesSyncMessage('');
+    } finally {
+      setIsSalesSyncing(false);
+    }
+  };
+
+  const handleSaveSalesEntry = async () => {
+    if (!salesUserId) {
+      setShowSalesAuth(true);
+      return;
+    }
+
+    setIsSalesSyncing(true);
+    try {
+      await saveSalesEntry(salesUserId, selectedPeriodId, sales, packages);
+      setSalesSyncMessage(`Tersimpan untuk ${MONTHS[selectedMonth - 1]} ${selectedYear}`);
+    } catch (error) {
+      setSalesSyncMessage(error instanceof Error ? error.message : 'Gagal menyimpan data sales.');
+    } finally {
+      setIsSalesSyncing(false);
+    }
+  };
+
+  const handleLoadSalesEntry = async () => {
+    if (!salesUserId) {
+      setShowSalesAuth(true);
+      return;
+    }
+
+    setIsSalesSyncing(true);
+    try {
+      const entry = await loadSalesEntry(salesUserId, selectedPeriodId);
+      if (!entry) {
+        setSales([]);
+        setSalesSyncMessage(`Belum ada data tersimpan untuk ${MONTHS[selectedMonth - 1]} ${selectedYear}`);
+        return;
+      }
+      setSales(entry.sales);
+      setSalesSyncMessage(`Data ${MONTHS[selectedMonth - 1]} ${selectedYear} dimuat`);
+    } catch (error) {
+      setSalesSyncMessage(error instanceof Error ? error.message : 'Gagal memuat data sales.');
+    } finally {
+      setIsSalesSyncing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans">
       <Header
@@ -258,6 +377,19 @@ function App() {
         </div>
 
         <SummaryCards totalSA={totalSA} activeTier={activeTier} totalIncentive={totalIncentive} />
+
+        <SalesAccountPanel
+          profile={salesProfile}
+          isConfigured={isSupabaseConfigured}
+          isSyncing={isSalesSyncing}
+          lastSavedLabel={salesSyncMessage}
+          onLogin={() => setShowSalesAuth(true)}
+          onSave={handleSaveSalesEntry}
+          onLoad={handleLoadSalesEntry}
+          onSignOut={() => {
+            void handleSalesSignOut();
+          }}
+        />
 
         <div id="add-form">
           <AddSaleForm packages={packages} onAdd={handleAddSale} onLoadSample={handleLoadSample} />
@@ -342,6 +474,12 @@ function App() {
         onSubmit={({ salespersonName, salesCode }) => {
           void handleSharePdf(salespersonName, salesCode);
         }}
+      />
+      <SalesAuthDialog
+        isOpen={showSalesAuth}
+        onCancel={() => setShowSalesAuth(false)}
+        onSignIn={handleSalesSignIn}
+        onSignUp={handleSalesSignUp}
       />
     </div>
   );

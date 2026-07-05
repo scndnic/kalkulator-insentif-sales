@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { IncentivePackage } from '../types/incentive';
+import { supabase } from './supabaseClient';
 
 const PACKAGE_TABLE = 'incentive_packages';
 
@@ -13,15 +13,6 @@ type PackageRow = {
   tier_15_plus: number;
   sort_order: number;
 };
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
-
-const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl!, supabaseAnonKey!)
-  : null;
 
 function rowToPackage(row: PackageRow): IncentivePackage {
   return {
