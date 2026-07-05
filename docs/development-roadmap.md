@@ -30,6 +30,9 @@ Output:
 - Tabel input penjualan sales per bulan.
 - Tampilan sales untuk melihat dan mengedit input bulan berjalan.
 
+File pendukung:
+- `supabase-growth-schema.sql` sebagai draft schema executable untuk akun sales, periode, input penjualan, payout rules, dan upress.
+
 Catatan keamanan:
 - Sales hanya boleh membaca/mengubah datanya sendiri.
 - Admin punya akses terpisah untuk konfigurasi dan koreksi.
@@ -96,4 +99,3 @@ Output:
 - Snapshot aturan per periode.
 - Lock periode setelah closing.
 - Koreksi manual dengan catatan alasan.
-
