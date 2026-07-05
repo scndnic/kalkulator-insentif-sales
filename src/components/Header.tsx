@@ -1,4 +1,4 @@
-import { Moon, Sun, Download, RotateCcw, Share2, UserCircle } from 'lucide-react';
+import { Moon, Sun, Save, RotateCcw, Share2, UserCircle } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 
 const MONTHS = [
@@ -95,10 +95,10 @@ export default function Header({
             <div className="flex items-center gap-1 ml-1">
               <button
                 onClick={onDownloadPdf}
-                title="Download PDF"
+                title="Simpan Data"
                 className="hidden lg:flex p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
               >
-                <Download className="w-4 h-4" />
+                <Save className="w-4 h-4" />
               </button>
               <button
                 onClick={onSharePdf}

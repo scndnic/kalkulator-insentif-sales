@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, Plus, Trash2, RotateCcw, Edit2, Check, GripVertical } from 'lucide-react';
-import { IncentivePackage } from '../types/incentive';
-import { DEFAULT_PACKAGES } from '../data/incentives';
+import { IncentivePackage, UpressRate, UpressTierKey } from '../types/incentive';
+import { DEFAULT_PACKAGES, DEFAULT_UPRESS_RATES } from '../data/incentives';
 import { formatCurrency } from '../utils/formatCurrency';
 import ConfirmDialog from './ConfirmDialog';
 
 interface PackageManagerProps {
   packages: IncentivePackage[];
   onUpdate: (packages: IncentivePackage[]) => void;
+  upressRates: UpressRate[];
+  onUpressUpdate: (rates: UpressRate[]) => void;
   onClose: () => void;
   usedPackageIds: string[];
 }
@@ -37,7 +39,14 @@ const PACKAGE_FORM_FIELDS: Array<{
   { key: 'tier15Plus', label: '>=15 SA', helper: 'Insentif per SA' },
 ];
 
-export default function PackageManager({ packages, onUpdate, onClose, usedPackageIds }: PackageManagerProps) {
+export default function PackageManager({
+  packages,
+  onUpdate,
+  upressRates,
+  onUpressUpdate,
+  onClose,
+  usedPackageIds,
+}: PackageManagerProps) {
   const [formMode, setFormMode] = useState<'add' | 'edit' | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<Omit<IncentivePackage, 'id'>>(EMPTY_PKG);
@@ -112,8 +121,32 @@ export default function PackageManager({ packages, onUpdate, onClose, usedPackag
 
   const handleReset = () => {
     onUpdate(DEFAULT_PACKAGES);
+    onUpressUpdate(DEFAULT_UPRESS_RATES);
     setConfirmReset(false);
     closeForm();
+  };
+
+  const getUpressRate = (packageId: string): UpressRate => {
+    return upressRates.find((rate) => rate.packageId === packageId) ?? {
+      packageId,
+      tier10: 0,
+      tier15: 0,
+      tier20: 0,
+      tier25: 0,
+    };
+  };
+
+  const handleUpressChange = (packageId: string, key: UpressTierKey, value: number) => {
+    const cleanValue = Math.max(0, value);
+    const exists = upressRates.some((rate) => rate.packageId === packageId);
+    if (exists) {
+      onUpressUpdate(upressRates.map((rate) => (
+        rate.packageId === packageId ? { ...rate, [key]: cleanValue } : rate
+      )));
+      return;
+    }
+
+    onUpressUpdate([...upressRates, { ...getUpressRate(packageId), [key]: cleanValue }]);
   };
 
   const movePackage = (fromId: string, toId: string) => {
@@ -335,6 +368,57 @@ export default function PackageManager({ packages, onUpdate, onClose, usedPackag
                 })}
               </tbody>
             </table>
+
+            <div className="border-t border-gray-100 px-5 py-4 dark:border-gray-800">
+              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Tabel Upress</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Nominal per SA berdasarkan total SA bulanan produk upress.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onUpressUpdate(DEFAULT_UPRESS_RATES)}
+                  className="h-9 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  Reset Upress
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-gray-800">
+                <table className="min-w-[720px] w-full text-xs">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Produk</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">10 SA</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">15 SA</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">20 SA</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">25 SA</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                    {packages.map((pkg) => {
+                      const rate = getUpressRate(pkg.id);
+                      return (
+                        <tr key={pkg.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                          <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900 dark:text-white">{pkg.name}</td>
+                          {(['tier10', 'tier15', 'tier20', 'tier25'] as UpressTierKey[]).map((key) => (
+                            <td key={key} className="px-4 py-2.5">
+                              <input
+                                type="number"
+                                min={0}
+                                value={rate[key]}
+                                onChange={(event) => handleUpressChange(pkg.id, key, Number(event.target.value))}
+                                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-right text-xs text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>

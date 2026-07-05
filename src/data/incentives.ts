@@ -1,4 +1,4 @@
-import { IncentivePackage } from '../types/incentive';
+import { IncentivePackage, UpressRate } from '../types/incentive';
 
 export const DEFAULT_PACKAGES: IncentivePackage[] = [
   { id: 'ring10', name: 'Ring 10', productPrice: 99000, tier0To5: 0, tier6To10: 25000, tier11To14: 35000, tier15Plus: 45000 },
@@ -19,4 +19,13 @@ export const DEFAULT_PACKAGES: IncentivePackage[] = [
   { id: 'gamer710', name: 'Gamer 710', productPrice: 700000, tier0To5: 0, tier6To10: 100000, tier11To14: 650000, tier15Plus: 675000 },
   { id: 'ultra1gbps', name: 'Ultra 1 Gbps', productPrice: 850000, tier0To5: 0, tier6To10: 100000, tier11To14: 700000, tier15Plus: 725000 },
   { id: 'gamer1gbps', name: 'Gamer 1 Gbps', productPrice: 900000, tier0To5: 0, tier6To10: 100000, tier11To14: 750000, tier15Plus: 775000 },
+];
+
+export const DEFAULT_UPRESS_RATES: UpressRate[] = [
+  { packageId: 'neo100', tier10: 75000, tier15: 90000, tier20: 105000, tier25: 120000 },
+  { packageId: 'velo150', tier10: 120000, tier15: 145000, tier20: 165000, tier25: 185000 },
+  { packageId: 'nexus300', tier10: 120000, tier15: 145000, tier20: 165000, tier25: 185000 },
+  { packageId: 'prime300', tier10: 120000, tier15: 145000, tier20: 165000, tier25: 185000 },
+  { packageId: 'wonder750', tier10: 120000, tier15: 145000, tier20: 165000, tier25: 185000 },
+  { packageId: 'ultra1gbps', tier10: 120000, tier15: 145000, tier20: 165000, tier25: 185000 },
 ];

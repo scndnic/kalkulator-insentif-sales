@@ -4,7 +4,6 @@ import SummaryCards from './components/SummaryCards';
 import AddSaleForm from './components/AddSaleForm';
 import SalesTable from './components/SalesTable';
 import EmptyState from './components/EmptyState';
-import PaymentBreakdown from './components/PaymentBreakdown';
 import TargetSimulator from './components/TargetSimulator';
 import IncentiveReference from './components/IncentiveReference';
 import PackageManager from './components/PackageManager';
@@ -14,12 +13,13 @@ import ShareSalesDialog from './components/ShareSalesDialog';
 import SalesAuthDialog from './components/SalesAuthDialog';
 import SalesAccountDialog from './components/SalesAccountDialog';
 import PayoutSections from './components/PayoutSections';
-import { DEFAULT_PACKAGES } from './data/incentives';
-import { SaleItem, IncentivePackage } from './types/incentive';
+import { DEFAULT_PACKAGES, DEFAULT_UPRESS_RATES } from './data/incentives';
+import { SaleItem, IncentivePackage, UpressRate } from './types/incentive';
 import { getTier } from './utils/getTier';
 import { calculateTotalIncentive, calculateTotalSA } from './utils/calculateIncentive';
 import { generateSalesPdf } from './utils/generateSalesPdf';
 import { savePackagesToSupabase, seedPackagesIfEmpty } from './services/packageStore';
+import { saveUpressRatesToSupabase, seedUpressRatesIfEmpty } from './services/upressStore';
 import { isSupabaseConfigured } from './services/supabaseClient';
 import {
   SalesProfile,
@@ -31,7 +31,7 @@ import {
   signUpSales,
 } from './services/authStore';
 import { getPeriodId, loadSalesEntriesForPeriods, loadSalesEntry, saveSalesEntry } from './services/salesEntryStore';
-import { calculateMonthlyPayout, calculateQuarterlyPayout, getQuarterPeriods } from './utils/payoutEngine';
+import { calculateMonthlyPayout, calculateQuarterlyPayout, getQuarterPeriods, shiftPeriod } from './utils/payoutEngine';
 
 const MONTHS = [
   'Januari','Februari','Maret','April','Mei','Juni',
@@ -39,6 +39,7 @@ const MONTHS = [
 ];
 
 const PACKAGE_STORAGE_KEY = 'kalkulator-packages';
+const UPRESS_STORAGE_KEY = 'kalkulator-upress-rates';
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
@@ -59,11 +60,30 @@ function loadStoredPackages() {
   }
 }
 
+function loadStoredUpressRates() {
+  try {
+    const storedRates = window.localStorage.getItem(UPRESS_STORAGE_KEY);
+    if (!storedRates) return DEFAULT_UPRESS_RATES;
+
+    const parsed = JSON.parse(storedRates) as UpressRate[];
+    if (!Array.isArray(parsed)) return DEFAULT_UPRESS_RATES;
+
+    return parsed;
+  } catch {
+    window.localStorage.removeItem(UPRESS_STORAGE_KEY);
+    return DEFAULT_UPRESS_RATES;
+  }
+}
+
 function App() {
   const now = new Date();
   const hasLoadedRemotePackages = useRef(!isSupabaseConfigured);
+  const hasLoadedRemoteUpress = useRef(!isSupabaseConfigured);
+  const skipNextAutoSalesLoad = useRef(false);
+  const autoLoadedSalesKey = useRef('');
   const [darkMode, setDarkMode] = useState(false);
   const [packages, setPackages] = useState<IncentivePackage[]>(loadStoredPackages);
+  const [upressRates, setUpressRates] = useState<UpressRate[]>(loadStoredUpressRates);
   const [sales, setSales] = useState<SaleItem[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -77,6 +97,7 @@ function App() {
   const [salesUserId, setSalesUserId] = useState<string | null>(null);
   const [salesProfile, setSalesProfile] = useState<SalesProfile | null>(null);
   const [quarterSalesByPeriod, setQuarterSalesByPeriod] = useState<Record<string, SaleItem[]>>({});
+  const [deferredSourceSales, setDeferredSourceSales] = useState<SaleItem[]>([]);
   const [isSalesSyncing, setIsSalesSyncing] = useState(false);
   const [salesSyncMessage, setSalesSyncMessage] = useState('');
   const [pendingAdminAction, setPendingAdminAction] = useState<'packages' | 'reference' | null>(null);
@@ -156,6 +177,28 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let cancelled = false;
+    seedUpressRatesIfEmpty(loadStoredUpressRates())
+      .then((remoteRates) => {
+        if (cancelled || !remoteRates || remoteRates.length === 0) return;
+        setUpressRates(remoteRates);
+        window.localStorage.setItem(UPRESS_STORAGE_KEY, JSON.stringify(remoteRates));
+      })
+      .catch(() => {
+        // Keep the local upress cache usable if the remote table is not ready yet.
+      })
+      .finally(() => {
+        if (!cancelled) hasLoadedRemoteUpress.current = true;
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(packages));
 
     if (!isSupabaseConfigured || !hasLoadedRemotePackages.current) return;
@@ -169,10 +212,25 @@ function App() {
     return () => window.clearTimeout(saveTimer);
   }, [packages]);
 
+  useEffect(() => {
+    window.localStorage.setItem(UPRESS_STORAGE_KEY, JSON.stringify(upressRates));
+
+    if (!isSupabaseConfigured || !hasLoadedRemoteUpress.current) return;
+
+    const saveTimer = window.setTimeout(() => {
+      saveUpressRatesToSupabase(upressRates).catch(() => {
+        // Local cache remains the fallback until the Supabase upress table is available.
+      });
+    }, 400);
+
+    return () => window.clearTimeout(saveTimer);
+  }, [upressRates]);
+
   const totalSA = calculateTotalSA(sales);
   const activeTier = getTier(totalSA);
   const totalIncentive = calculateTotalIncentive(sales, packages);
   const selectedPeriodId = getPeriodId(selectedYear, selectedMonth);
+  const deferredSourcePeriod = useMemo(() => shiftPeriod(selectedYear, selectedMonth, -2), [selectedMonth, selectedYear]);
   const quarterPeriods = useMemo(() => getQuarterPeriods(selectedYear, selectedMonth), [selectedYear, selectedMonth]);
   const currentQuarterSalesByPeriod = useMemo(
     () => ({
@@ -181,11 +239,15 @@ function App() {
     }),
     [quarterSalesByPeriod, sales, selectedPeriodId],
   );
-  const monthlyPayout = useMemo(() => calculateMonthlyPayout(sales, packages), [sales, packages]);
-  const quarterlyPayout = useMemo(
-    () => calculateQuarterlyPayout(selectedYear, selectedMonth, currentQuarterSalesByPeriod, packages),
-    [currentQuarterSalesByPeriod, packages, selectedMonth, selectedYear],
+  const monthlyPayout = useMemo(
+    () => calculateMonthlyPayout(sales, packages, 80, deferredSourceSales, selectedYear, selectedMonth),
+    [deferredSourceSales, packages, sales, selectedMonth, selectedYear],
   );
+  const quarterlyPayout = useMemo(
+    () => calculateQuarterlyPayout(selectedYear, selectedMonth, currentQuarterSalesByPeriod, upressRates),
+    [currentQuarterSalesByPeriod, selectedMonth, selectedYear, upressRates],
+  );
+  const totalIncome = monthlyPayout.monthlyIncome + quarterlyPayout.totalAmount;
 
   const markSalesDraft = useCallback(() => {
     if (salesUserId) setSalesSyncMessage('Ada perubahan belum disimpan');
@@ -236,6 +298,7 @@ function App() {
   useEffect(() => {
     if (!salesUserId) {
       setQuarterSalesByPeriod({});
+      setDeferredSourceSales([]);
       return;
     }
 
@@ -254,20 +317,64 @@ function App() {
     };
   }, [salesUserId, quarterPeriods]);
 
+  useEffect(() => {
+    if (!salesUserId) {
+      setDeferredSourceSales([]);
+      return;
+    }
+
+    let cancelled = false;
+    loadSalesEntry(salesUserId, deferredSourcePeriod.periodId)
+      .then((entry) => {
+        if (!cancelled) setDeferredSourceSales(entry?.sales ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setDeferredSourceSales([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deferredSourcePeriod.periodId, salesUserId]);
+
+  useEffect(() => {
+    if (!salesUserId) {
+      autoLoadedSalesKey.current = '';
+      return;
+    }
+
+    const key = `${salesUserId}:${selectedPeriodId}`;
+    if (autoLoadedSalesKey.current === key) return;
+    autoLoadedSalesKey.current = key;
+
+    if (skipNextAutoSalesLoad.current) {
+      skipNextAutoSalesLoad.current = false;
+      return;
+    }
+
+    let cancelled = false;
+    setIsSalesSyncing(true);
+    loadSalesEntry(salesUserId, selectedPeriodId)
+      .then((entry) => {
+        if (cancelled) return;
+        setSales(entry?.sales ?? []);
+        setQuarterSalesByPeriod((prev) => ({ ...prev, [selectedPeriodId]: entry?.sales ?? [] }));
+        setSalesSyncMessage(entry ? `Data ${MONTHS[selectedMonth - 1]} ${selectedYear} dimuat` : '');
+      })
+      .catch(() => {
+        if (!cancelled) setSalesSyncMessage('Gagal memuat data sales tersimpan.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsSalesSyncing(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [salesUserId, selectedPeriodId, selectedMonth, selectedYear]);
+
   const scrollToForm = () => {
     document.getElementById('add-form')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const downloadPdf = () => {
-    generateSalesPdf({
-      sales,
-      packages,
-      activeTier,
-      totalSA,
-      totalIncentive,
-      selectedMonthName: MONTHS[selectedMonth - 1],
-      selectedYear,
-    });
   };
 
   const handleSharePdf = async (salespersonName: string, salesCode: string) => {
@@ -337,6 +444,7 @@ function App() {
   };
 
   const handleSalesSignIn = async (email: string, password: string) => {
+    skipNextAutoSalesLoad.current = sales.length > 0;
     const user = await signInSales(email, password);
     setSalesUserId(user?.id ?? null);
   };
@@ -353,6 +461,7 @@ function App() {
       setSalesProfile(null);
       setSalesSyncMessage('');
       setQuarterSalesByPeriod({});
+      setDeferredSourceSales([]);
       setShowSalesAccount(false);
     } finally {
       setIsSalesSyncing(false);
@@ -410,7 +519,7 @@ function App() {
         onMonthChange={setSelectedMonth}
         onYearChange={setSelectedYear}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
-        onDownloadPdf={downloadPdf}
+        onDownloadPdf={handleSaveSalesEntry}
         onSharePdf={() => setShowShareDialog(true)}
         onReset={() => setShowResetConfirm(true)}
         onLogoClick={() => requestAdminAccess('packages')}
@@ -433,7 +542,13 @@ function App() {
           </div>
         </div>
 
-        <SummaryCards totalSA={totalSA} activeTier={activeTier} totalIncentive={totalIncentive} />
+        <SummaryCards
+          currentMonthSA={totalSA}
+          quarterSA={quarterlyPayout.totalQuarterSA}
+          totalIncentive={totalIncentive}
+          totalUpress={quarterlyPayout.totalAmount}
+          totalIncome={totalIncome}
+        />
 
         <div id="add-form">
           <AddSaleForm packages={packages} onAdd={handleAddSale} onLoadSample={handleLoadSample} />
@@ -453,23 +568,21 @@ function App() {
           />
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 print:grid-cols-2">
-          <PaymentBreakdown totalIncentive={totalIncentive} />
-          <TargetSimulator sales={sales} packages={packages} totalSA={totalSA} totalIncentive={totalIncentive} />
-        </div>
-
         <PayoutSections monthly={monthlyPayout} quarterly={quarterlyPayout} />
+
+        <TargetSimulator sales={sales} packages={packages} totalSA={totalSA} totalIncentive={totalIncentive} />
 
         <IncentiveReference
           packages={packages}
           activeTier={activeTier}
+          upressRates={upressRates}
         />
       </main>
 
       {/* Mobile and tablet bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-4 py-3 flex gap-3 lg:hidden print:hidden z-30">
         <button
-          onClick={downloadPdf}
+          onClick={handleSaveSalesEntry}
           className="flex-1 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700"
         >
           Simpan
@@ -492,6 +605,8 @@ function App() {
         <PackageManager
           packages={packages}
           onUpdate={setPackages}
+          upressRates={upressRates}
+          onUpressUpdate={setUpressRates}
           onClose={() => setShowPackageManager(false)}
           usedPackageIds={usedPackageIds}
         />
@@ -500,7 +615,7 @@ function App() {
       <ConfirmDialog
         isOpen={showResetConfirm}
         title="Reset Perhitungan?"
-        message="Semua data penjualan sesi ini akan dihapus. Data juga otomatis kosong lagi saat halaman direfresh."
+        message="Data penjualan pada layar akan dikosongkan. Data database tidak berubah sampai Anda menekan Simpan lagi."
         confirmLabel="Ya, Reset"
         onConfirm={handleReset}
         onCancel={() => setShowResetConfirm(false)}
