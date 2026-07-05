@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Header from './components/Header';
 import SummaryCards from './components/SummaryCards';
 import AddSaleForm from './components/AddSaleForm';
@@ -12,7 +12,8 @@ import ConfirmDialog from './components/ConfirmDialog';
 import AdminLoginDialog from './components/AdminLoginDialog';
 import ShareSalesDialog from './components/ShareSalesDialog';
 import SalesAuthDialog from './components/SalesAuthDialog';
-import SalesAccountPanel from './components/SalesAccountPanel';
+import SalesAccountDialog from './components/SalesAccountDialog';
+import PayoutSections from './components/PayoutSections';
 import { DEFAULT_PACKAGES } from './data/incentives';
 import { SaleItem, IncentivePackage } from './types/incentive';
 import { getTier } from './utils/getTier';
@@ -29,7 +30,8 @@ import {
   signOutSales,
   signUpSales,
 } from './services/authStore';
-import { getPeriodId, loadSalesEntry, saveSalesEntry } from './services/salesEntryStore';
+import { getPeriodId, loadSalesEntriesForPeriods, loadSalesEntry, saveSalesEntry } from './services/salesEntryStore';
+import { calculateMonthlyPayout, calculateQuarterlyPayout, getQuarterPeriods } from './utils/payoutEngine';
 
 const MONTHS = [
   'Januari','Februari','Maret','April','Mei','Juni',
@@ -71,8 +73,10 @@ function App() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showSalesAuth, setShowSalesAuth] = useState(false);
+  const [showSalesAccount, setShowSalesAccount] = useState(false);
   const [salesUserId, setSalesUserId] = useState<string | null>(null);
   const [salesProfile, setSalesProfile] = useState<SalesProfile | null>(null);
+  const [quarterSalesByPeriod, setQuarterSalesByPeriod] = useState<Record<string, SaleItem[]>>({});
   const [isSalesSyncing, setIsSalesSyncing] = useState(false);
   const [salesSyncMessage, setSalesSyncMessage] = useState('');
   const [pendingAdminAction, setPendingAdminAction] = useState<'packages' | 'reference' | null>(null);
@@ -168,6 +172,20 @@ function App() {
   const totalSA = calculateTotalSA(sales);
   const activeTier = getTier(totalSA);
   const totalIncentive = calculateTotalIncentive(sales, packages);
+  const selectedPeriodId = getPeriodId(selectedYear, selectedMonth);
+  const quarterPeriods = useMemo(() => getQuarterPeriods(selectedYear, selectedMonth), [selectedYear, selectedMonth]);
+  const currentQuarterSalesByPeriod = useMemo(
+    () => ({
+      ...quarterSalesByPeriod,
+      [selectedPeriodId]: sales,
+    }),
+    [quarterSalesByPeriod, sales, selectedPeriodId],
+  );
+  const monthlyPayout = useMemo(() => calculateMonthlyPayout(sales, packages), [sales, packages]);
+  const quarterlyPayout = useMemo(
+    () => calculateQuarterlyPayout(selectedYear, selectedMonth, currentQuarterSalesByPeriod, packages),
+    [currentQuarterSalesByPeriod, packages, selectedMonth, selectedYear],
+  );
 
   const markSalesDraft = useCallback(() => {
     if (salesUserId) setSalesSyncMessage('Ada perubahan belum disimpan');
@@ -214,7 +232,27 @@ function App() {
   };
 
   const usedPackageIds = sales.map((s) => s.packageId);
-  const selectedPeriodId = getPeriodId(selectedYear, selectedMonth);
+
+  useEffect(() => {
+    if (!salesUserId) {
+      setQuarterSalesByPeriod({});
+      return;
+    }
+
+    let cancelled = false;
+    const periodIds = quarterPeriods.map((period) => period.periodId);
+    loadSalesEntriesForPeriods(salesUserId, periodIds)
+      .then((entries) => {
+        if (!cancelled) setQuarterSalesByPeriod(entries);
+      })
+      .catch(() => {
+        if (!cancelled) setQuarterSalesByPeriod({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [salesUserId, quarterPeriods]);
 
   const scrollToForm = () => {
     document.getElementById('add-form')?.scrollIntoView({ behavior: 'smooth' });
@@ -314,6 +352,8 @@ function App() {
       setSalesUserId(null);
       setSalesProfile(null);
       setSalesSyncMessage('');
+      setQuarterSalesByPeriod({});
+      setShowSalesAccount(false);
     } finally {
       setIsSalesSyncing(false);
     }
@@ -328,6 +368,7 @@ function App() {
     setIsSalesSyncing(true);
     try {
       await saveSalesEntry(salesUserId, selectedPeriodId, sales, packages);
+      setQuarterSalesByPeriod((prev) => ({ ...prev, [selectedPeriodId]: sales }));
       setSalesSyncMessage(`Tersimpan untuk ${MONTHS[selectedMonth - 1]} ${selectedYear}`);
     } catch (error) {
       setSalesSyncMessage(error instanceof Error ? error.message : 'Gagal menyimpan data sales.');
@@ -351,6 +392,7 @@ function App() {
         return;
       }
       setSales(entry.sales);
+      setQuarterSalesByPeriod((prev) => ({ ...prev, [selectedPeriodId]: entry.sales }));
       setSalesSyncMessage(`Data ${MONTHS[selectedMonth - 1]} ${selectedYear} dimuat`);
     } catch (error) {
       setSalesSyncMessage(error instanceof Error ? error.message : 'Gagal memuat data sales.');
@@ -372,6 +414,12 @@ function App() {
         onSharePdf={() => setShowShareDialog(true)}
         onReset={() => setShowResetConfirm(true)}
         onLogoClick={() => requestAdminAccess('packages')}
+        onSalesAccountClick={() => {
+          if (salesUserId) setShowSalesAccount(true);
+          else setShowSalesAuth(true);
+        }}
+        salesLoggedIn={Boolean(salesUserId)}
+        salesLabel={salesProfile?.name || 'Akun Sales'}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 sm:space-y-6 pb-24 lg:pb-6">
@@ -386,19 +434,6 @@ function App() {
         </div>
 
         <SummaryCards totalSA={totalSA} activeTier={activeTier} totalIncentive={totalIncentive} />
-
-        <SalesAccountPanel
-          profile={salesProfile}
-          isConfigured={isSupabaseConfigured}
-          isSyncing={isSalesSyncing}
-          lastSavedLabel={salesSyncMessage}
-          onLogin={() => setShowSalesAuth(true)}
-          onSave={handleSaveSalesEntry}
-          onLoad={handleLoadSalesEntry}
-          onSignOut={() => {
-            void handleSalesSignOut();
-          }}
-        />
 
         <div id="add-form">
           <AddSaleForm packages={packages} onAdd={handleAddSale} onLoadSample={handleLoadSample} />
@@ -422,6 +457,8 @@ function App() {
           <PaymentBreakdown totalIncentive={totalIncentive} />
           <TargetSimulator sales={sales} packages={packages} totalSA={totalSA} totalIncentive={totalIncentive} />
         </div>
+
+        <PayoutSections monthly={monthlyPayout} quarterly={quarterlyPayout} />
 
         <IncentiveReference
           packages={packages}
@@ -489,6 +526,23 @@ function App() {
         onCancel={() => setShowSalesAuth(false)}
         onSignIn={handleSalesSignIn}
         onSignUp={handleSalesSignUp}
+      />
+      <SalesAccountDialog
+        isOpen={showSalesAccount}
+        profile={salesProfile}
+        isConfigured={isSupabaseConfigured}
+        isSyncing={isSalesSyncing}
+        lastSavedLabel={salesSyncMessage}
+        onLogin={() => {
+          setShowSalesAccount(false);
+          setShowSalesAuth(true);
+        }}
+        onSave={handleSaveSalesEntry}
+        onLoad={handleLoadSalesEntry}
+        onSignOut={() => {
+          void handleSalesSignOut();
+        }}
+        onClose={() => setShowSalesAccount(false)}
       />
     </div>
   );

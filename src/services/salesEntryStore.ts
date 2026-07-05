@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 
 type SalesEntryRow = {
   id: string;
+  period_id?: string;
   status: string;
   sales_entry_items: Array<{
     id: string;
@@ -38,6 +39,28 @@ export async function loadSalesEntry(userId: string, periodId: string) {
       quantity: item.quantity,
     })),
   };
+}
+
+export async function loadSalesEntriesForPeriods(userId: string, periodIds: string[]) {
+  if (!supabase || periodIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('sales_entries')
+    .select('id,period_id,status,sales_entry_items(id,package_id,quantity)')
+    .eq('sales_id', userId)
+    .in('period_id', periodIds);
+
+  if (error) throw error;
+
+  return ((data ?? []) as SalesEntryRow[]).reduce<Record<string, SaleItem[]>>((entries, entry) => {
+    if (!entry.period_id) return entries;
+    entries[entry.period_id] = entry.sales_entry_items.map((item) => ({
+      id: item.id,
+      packageId: item.package_id,
+      quantity: item.quantity,
+    }));
+    return entries;
+  }, {});
 }
 
 export async function saveSalesEntry(

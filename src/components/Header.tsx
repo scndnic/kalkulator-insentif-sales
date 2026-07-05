@@ -1,4 +1,4 @@
-import { Moon, Sun, Download, RotateCcw, Share2 } from 'lucide-react';
+import { Moon, Sun, Download, RotateCcw, Share2, UserCircle } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 
 const MONTHS = [
@@ -17,6 +17,9 @@ interface HeaderProps {
   onSharePdf: () => void;
   onReset: () => void;
   onLogoClick: () => void;
+  onSalesAccountClick: () => void;
+  salesLoggedIn: boolean;
+  salesLabel: string;
 }
 
 export default function Header({
@@ -30,6 +33,9 @@ export default function Header({
   onSharePdf,
   onReset,
   onLogoClick,
+  onSalesAccountClick,
+  salesLoggedIn,
+  salesLabel,
 }: HeaderProps) {
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
   const monthOptions = MONTHS.map((month, index) => ({ value: String(index + 1), label: month }));
@@ -107,6 +113,17 @@ export default function Header({
                 className="hidden lg:flex p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
               >
                 <RotateCcw className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onSalesAccountClick}
+                title={salesLoggedIn ? salesLabel : 'Login Sales'}
+                className={`p-2 rounded-lg transition-colors ${
+                  salesLoggedIn
+                    ? 'bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-900/30 dark:text-brand-300 dark:hover:bg-brand-900/50'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                }`}
+              >
+                <UserCircle className="w-4 h-4" />
               </button>
               <button
                 onClick={onToggleDarkMode}
