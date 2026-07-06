@@ -20,6 +20,7 @@ interface PackageManagerProps {
   onUpressUpdate: (rates: UpressRate[]) => void;
   selectedMonth: number;
   selectedYear: number;
+  syncMessage: string;
   onClose: () => void;
   usedPackageIds: string[];
 }
@@ -79,6 +80,7 @@ export default function PackageManager({
   onUpressUpdate,
   selectedMonth,
   selectedYear,
+  syncMessage,
   onClose,
   usedPackageIds,
 }: PackageManagerProps) {
@@ -603,7 +605,6 @@ export default function PackageManager({
                     <label className="lg:col-span-1">
                       <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Produk</span>
                       <CustomSelect
-                        key={upressFormValues.packageId || 'empty-product'}
                         value={upressFormValues.packageId}
                         options={[
                           { value: '', label: 'Pilih produk' },
@@ -612,6 +613,7 @@ export default function PackageManager({
                         onChange={(value) => {
                           if (upressFormMode === 'edit') return;
                           setUpressFormValues({ ...upressFormValues, packageId: value });
+                          setUpressFormError('');
                         }}
                         placeholder="Pilih produk"
                         className={upressFormMode === 'edit' ? 'pointer-events-none opacity-70' : ''}
@@ -652,6 +654,16 @@ export default function PackageManager({
                       Simpan Upress
                     </button>
                   </div>
+                </div>
+              )}
+
+              {syncMessage && (
+                <div className={`mb-4 rounded-xl border px-4 py-3 text-xs font-medium ${
+                  syncMessage.toLowerCase().includes('gagal') || syncMessage.toLowerCase().includes('belum tersambung')
+                    ? 'border-red-100 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-900/20 dark:text-red-300'
+                    : 'border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-300'
+                }`}>
+                  {syncMessage}
                 </div>
               )}
 

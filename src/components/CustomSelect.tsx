@@ -29,6 +29,11 @@ export default function CustomSelect({
   const listId = useId();
   const selectedOption = options.find((option) => option.value === value);
 
+  const commitSelection = (nextValue: string) => {
+    onChange(nextValue);
+    setIsOpen(false);
+  };
+
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
@@ -80,9 +85,13 @@ export default function CustomSelect({
                 type="button"
                 role="option"
                 aria-selected={isSelected}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  commitSelection(option.value);
+                }}
                 onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
+                  commitSelection(option.value);
                 }}
                 className={`flex min-h-9 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   isSelected

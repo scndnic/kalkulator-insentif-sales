@@ -106,6 +106,7 @@ function App() {
   const [deferredSourceSales, setDeferredSourceSales] = useState<SaleItem[]>([]);
   const [isSalesSyncing, setIsSalesSyncing] = useState(false);
   const [salesSyncMessage, setSalesSyncMessage] = useState('');
+  const [adminDataMessage, setAdminDataMessage] = useState('');
   const [saveToastMessage, setSaveToastMessage] = useState('');
   const [pendingAdminAction, setPendingAdminAction] = useState<'packages' | 'reference' | null>(null);
 
@@ -195,6 +196,7 @@ function App() {
       })
       .catch(() => {
         // Keep the local upress cache usable if the remote table is not ready yet.
+        if (!cancelled) setAdminDataMessage('Data upress belum tersambung ke Supabase. Pastikan tabel upress_package_rates sudah dibuat.');
       })
       .finally(() => {
         if (!cancelled) hasLoadedRemoteUpress.current = true;
@@ -225,9 +227,13 @@ function App() {
     if (!isSupabaseConfigured || !hasLoadedRemoteUpress.current) return;
 
     const saveTimer = window.setTimeout(() => {
-      saveUpressRatesToSupabase(upressRates).catch(() => {
-        // Local cache remains the fallback until the Supabase upress table is available.
-      });
+      saveUpressRatesToSupabase(upressRates)
+        .then(() => {
+          setAdminDataMessage('Data upress tersimpan ke Supabase.');
+        })
+        .catch((error) => {
+          setAdminDataMessage(error instanceof Error ? `Gagal menyimpan upress ke Supabase: ${error.message}` : 'Gagal menyimpan upress ke Supabase.');
+        });
     }, 400);
 
     return () => window.clearTimeout(saveTimer);
@@ -262,6 +268,13 @@ function App() {
     const timer = window.setTimeout(() => setSaveToastMessage(''), 3500);
     return () => window.clearTimeout(timer);
   }, [saveToastMessage]);
+
+  useEffect(() => {
+    if (!adminDataMessage) return;
+
+    const timer = window.setTimeout(() => setAdminDataMessage(''), 6500);
+    return () => window.clearTimeout(timer);
+  }, [adminDataMessage]);
 
   const markSalesDraft = useCallback(() => {
     if (!salesUserId) return;
@@ -651,6 +664,7 @@ function App() {
           onUpressUpdate={setUpressRates}
           selectedMonth={selectedMonth}
           selectedYear={selectedYear}
+          syncMessage={adminDataMessage}
           onClose={() => setShowPackageManager(false)}
           usedPackageIds={usedPackageIds}
         />
