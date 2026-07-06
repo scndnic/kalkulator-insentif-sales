@@ -9,6 +9,45 @@ export type SalesProfile = {
   is_active: boolean;
 };
 
+type SignUpResult = {
+  user: User | null;
+  needsEmailConfirmation: boolean;
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!error) return fallback;
+  if (error instanceof Error && error.message && error.message !== '{}') return error.message;
+  if (typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    const message = record.message || record.error_description || record.error;
+    if (typeof message === 'string' && message && message !== '{}') return message;
+  }
+  if (typeof error === 'string' && error && error !== '{}') return error;
+  return fallback;
+}
+
+async function ensureSalesProfile(user: User, fallbackName?: string, fallbackSalesCode?: string) {
+  if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+
+  const metadata = user.user_metadata as Record<string, unknown>;
+  const name = String(fallbackName || metadata.name || user.email?.split('@')[0] || 'Sales').trim();
+  const salesCode = String(fallbackSalesCode || metadata.sales_code || '').trim();
+
+  const { error } = await supabase
+    .from('sales_profiles')
+    .upsert({
+      id: user.id,
+      name,
+      sales_code: salesCode || null,
+      role: 'sales',
+      is_active: true,
+    }, { onConflict: 'id' });
+
+  if (error) {
+    throw new Error(getErrorMessage(error, 'Akun berhasil dibuat, tetapi profil sales gagal disimpan.'));
+  }
+}
+
 export async function getCurrentUser() {
   if (!supabase) return null;
 
@@ -27,7 +66,7 @@ export function onAuthChange(callback: (user: User | null) => void) {
   return () => data.subscription.unsubscribe();
 }
 
-export async function signUpSales(email: string, password: string, name: string, salesCode: string) {
+export async function signUpSales(email: string, password: string, name: string, salesCode: string): Promise<SignUpResult> {
   if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
 
   const { data, error } = await supabase.auth.signUp({
@@ -41,15 +80,24 @@ export async function signUpSales(email: string, password: string, name: string,
     },
   });
 
-  if (error) throw error;
-  return data.user;
+  if (error) throw new Error(getErrorMessage(error, 'Gagal membuat akun sales.'));
+
+  if (data.user && data.session) {
+    await ensureSalesProfile(data.user, name, salesCode);
+  }
+
+  return {
+    user: data.user,
+    needsEmailConfirmation: Boolean(data.user && !data.session),
+  };
 }
 
 export async function signInSales(email: string, password: string) {
   if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
+  if (error) throw new Error(getErrorMessage(error, 'Gagal login sales.'));
+  if (data.user) await ensureSalesProfile(data.user);
   return data.user;
 }
 

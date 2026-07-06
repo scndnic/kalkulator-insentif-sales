@@ -518,7 +518,7 @@ function App() {
   };
 
   const handleSalesSignUp = async (email: string, password: string, name: string, salesCode: string) => {
-    await signUpSales(email, password, name, salesCode);
+    return signUpSales(email, password, name, salesCode);
   };
 
   const handleSalesSignOut = async () => {

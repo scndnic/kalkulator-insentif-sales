@@ -5,7 +5,7 @@ interface SalesAuthDialogProps {
   isOpen: boolean;
   onCancel: () => void;
   onSignIn: (email: string, password: string) => Promise<void>;
-  onSignUp: (email: string, password: string, name: string, salesCode: string) => Promise<void>;
+  onSignUp: (email: string, password: string, name: string, salesCode: string) => Promise<{ needsEmailConfirmation: boolean }>;
 }
 
 export default function SalesAuthDialog({ isOpen, onCancel, onSignIn, onSignUp }: SalesAuthDialogProps) {
@@ -31,6 +31,10 @@ export default function SalesAuthDialog({ isOpen, onCancel, onSignIn, onSignUp }
       setError('Email dan password wajib diisi.');
       return;
     }
+    if (password.length < 6) {
+      setError('Password minimal 6 karakter.');
+      return;
+    }
     if (mode === 'signup' && !name.trim()) {
       setError('Nama sales wajib diisi.');
       return;
@@ -42,12 +46,15 @@ export default function SalesAuthDialog({ isOpen, onCancel, onSignIn, onSignUp }
         await onSignIn(email.trim(), password);
         onCancel();
       } else {
-        await onSignUp(email.trim(), password, name.trim(), salesCode.trim());
-        setMessage('Akun dibuat. Jika email confirmation aktif, cek email sebelum login.');
+        const result = await onSignUp(email.trim(), password, name.trim(), salesCode.trim());
+        setMessage(result.needsEmailConfirmation
+          ? 'Akun dibuat. Cek email untuk konfirmasi, lalu login agar profil sales aktif.'
+          : 'Akun dan profil sales berhasil dibuat. Silakan login.');
         setMode('signin');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal memproses akun sales.');
+      const message = err instanceof Error ? err.message : String(err || '');
+      setError(message && message !== '{}' ? message : 'Gagal memproses akun sales. Cek pengaturan Auth Supabase.');
     } finally {
       setIsSubmitting(false);
     }
