@@ -39,6 +39,21 @@ const PACKAGE_FORM_FIELDS: Array<{
   { key: 'tier15Plus', label: '>=15 SA', helper: 'Insentif per SA' },
 ];
 
+const EMPTY_UPRESS: UpressRate = {
+  packageId: '',
+  tier10: 0,
+  tier15: 0,
+  tier20: 0,
+  tier25: 0,
+};
+
+const UPRESS_FORM_FIELDS: Array<{ key: UpressTierKey; label: string }> = [
+  { key: 'tier10', label: '10 SA' },
+  { key: 'tier15', label: '15 SA' },
+  { key: 'tier20', label: '20 SA' },
+  { key: 'tier25', label: '25 SA' },
+];
+
 export default function PackageManager({
   packages,
   onUpdate,
@@ -50,9 +65,13 @@ export default function PackageManager({
   const [formMode, setFormMode] = useState<'add' | 'edit' | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<Omit<IncentivePackage, 'id'>>(EMPTY_PKG);
+  const [upressFormMode, setUpressFormMode] = useState<'add' | 'edit' | null>(null);
+  const [editingUpressId, setEditingUpressId] = useState<string | null>(null);
+  const [upressFormValues, setUpressFormValues] = useState<UpressRate>(EMPTY_UPRESS);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [formError, setFormError] = useState('');
+  const [upressFormError, setUpressFormError] = useState('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const activeDragId = useRef<string | null>(null);
@@ -84,6 +103,27 @@ export default function PackageManager({
     setEditingId(null);
     setFormValues(EMPTY_PKG);
     setFormError('');
+  };
+
+  const startAddUpress = () => {
+    setUpressFormMode('add');
+    setEditingUpressId(null);
+    setUpressFormValues(EMPTY_UPRESS);
+    setUpressFormError('');
+  };
+
+  const startEditUpress = (rate: UpressRate) => {
+    setUpressFormMode('edit');
+    setEditingUpressId(rate.packageId);
+    setUpressFormValues(rate);
+    setUpressFormError('');
+  };
+
+  const closeUpressForm = () => {
+    setUpressFormMode(null);
+    setEditingUpressId(null);
+    setUpressFormValues(EMPTY_UPRESS);
+    setUpressFormError('');
   };
 
   const handleSubmitForm = () => {
@@ -124,29 +164,37 @@ export default function PackageManager({
     onUpressUpdate(DEFAULT_UPRESS_RATES);
     setConfirmReset(false);
     closeForm();
+    closeUpressForm();
   };
 
-  const getUpressRate = (packageId: string): UpressRate => {
-    return upressRates.find((rate) => rate.packageId === packageId) ?? {
-      packageId,
-      tier10: 0,
-      tier15: 0,
-      tier20: 0,
-      tier25: 0,
-    };
-  };
-
-  const handleUpressChange = (packageId: string, key: UpressTierKey, value: number) => {
-    const cleanValue = Math.max(0, value);
-    const exists = upressRates.some((rate) => rate.packageId === packageId);
-    if (exists) {
-      onUpressUpdate(upressRates.map((rate) => (
-        rate.packageId === packageId ? { ...rate, [key]: cleanValue } : rate
-      )));
+  const handleSubmitUpressForm = () => {
+    if (!upressFormValues.packageId) {
+      setUpressFormError('Pilih produk terlebih dahulu.');
+      return;
+    }
+    if (UPRESS_FORM_FIELDS.some(({ key }) => upressFormValues[key] < 0)) {
+      setUpressFormError('Nominal upress tidak boleh negatif.');
+      return;
+    }
+    const isDuplicate = upressFormMode === 'add' && upressRates.some((rate) => rate.packageId === upressFormValues.packageId);
+    if (isDuplicate) {
+      setUpressFormError('Produk ini sudah ada di tabel upress.');
       return;
     }
 
-    onUpressUpdate([...upressRates, { ...getUpressRate(packageId), [key]: cleanValue }]);
+    if (upressFormMode === 'edit' && editingUpressId) {
+      onUpressUpdate(upressRates.map((rate) => (
+        rate.packageId === editingUpressId ? upressFormValues : rate
+      )));
+    } else {
+      onUpressUpdate([...upressRates, upressFormValues]);
+    }
+    closeUpressForm();
+  };
+
+  const handleDeleteUpress = (packageId: string) => {
+    onUpressUpdate(upressRates.filter((rate) => rate.packageId !== packageId));
+    if (editingUpressId === packageId) closeUpressForm();
   };
 
   const movePackage = (fromId: string, toId: string) => {
@@ -375,14 +423,84 @@ export default function PackageManager({
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Tabel Upress</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Nominal per SA berdasarkan total SA bulanan produk upress.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onUpressUpdate(DEFAULT_UPRESS_RATES)}
-                  className="h-9 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                >
-                  Reset Upress
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onUpressUpdate(DEFAULT_UPRESS_RATES)}
+                    className="h-9 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                  >
+                    Reset Upress
+                  </button>
+                  <button
+                    type="button"
+                    onClick={startAddUpress}
+                    className="flex h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-xs font-medium text-white transition-colors hover:bg-brand-700"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Tambah Upress
+                  </button>
+                </div>
               </div>
+
+              {upressFormMode && (
+                <div className="mb-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/50">
+                  <div className="mb-3">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {upressFormMode === 'edit' ? 'Edit Upress' : 'Tambah Upress'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Pilih produk dan isi nominal upress per SA.</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+                    <label className="lg:col-span-1">
+                      <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Produk</span>
+                      <select
+                        value={upressFormValues.packageId}
+                        disabled={upressFormMode === 'edit'}
+                        onChange={(event) => setUpressFormValues({ ...upressFormValues, packageId: event.target.value })}
+                        className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:disabled:bg-gray-800"
+                      >
+                        <option value="">Pilih produk</option>
+                        {packages.map((pkg) => (
+                          <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {UPRESS_FORM_FIELDS.map(({ key, label }) => (
+                      <label key={key}>
+                        <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{label}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={upressFormValues[key]}
+                          onChange={(event) => setUpressFormValues({ ...upressFormValues, [key]: Number(event.target.value) })}
+                          className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        />
+                      </label>
+                    ))}
+                  </div>
+
+                  {upressFormError && <p className="mt-3 text-xs font-medium text-red-500">{upressFormError}</p>}
+
+                  <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={closeUpressForm}
+                      className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium text-gray-600 transition-colors hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSubmitUpressForm}
+                      className="flex h-10 items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+                    >
+                      <Check className="h-4 w-4" />
+                      Simpan Upress
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-gray-800">
                 <table className="min-w-[720px] w-full text-xs">
@@ -393,25 +511,39 @@ export default function PackageManager({
                       <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">15 SA</th>
                       <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">20 SA</th>
                       <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">25 SA</th>
+                      <th className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                    {packages.map((pkg) => {
-                      const rate = getUpressRate(pkg.id);
+                    {upressRates.map((rate) => {
+                      const pkg = packages.find((item) => item.id === rate.packageId);
                       return (
-                        <tr key={pkg.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                          <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900 dark:text-white">{pkg.name}</td>
-                          {(['tier10', 'tier15', 'tier20', 'tier25'] as UpressTierKey[]).map((key) => (
-                            <td key={key} className="px-4 py-2.5">
-                              <input
-                                type="number"
-                                min={0}
-                                value={rate[key]}
-                                onChange={(event) => handleUpressChange(pkg.id, key, Number(event.target.value))}
-                                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-right text-xs text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                              />
-                            </td>
-                          ))}
+                        <tr key={rate.packageId} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                          <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900 dark:text-white">{pkg?.name ?? rate.packageId}</td>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right text-gray-600 dark:text-gray-400">{formatCurrency(rate.tier10)}</td>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right text-gray-600 dark:text-gray-400">{formatCurrency(rate.tier15)}</td>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right text-gray-600 dark:text-gray-400">{formatCurrency(rate.tier20)}</td>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right text-gray-600 dark:text-gray-400">{formatCurrency(rate.tier25)}</td>
+                          <td className="px-4 py-2.5 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => startEditUpress(rate)}
+                                className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-900/20"
+                                title="Edit upress"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUpress(rate.packageId)}
+                                className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                                title="Hapus upress"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}

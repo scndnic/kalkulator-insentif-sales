@@ -437,6 +437,15 @@ function App() {
     downloadSharedPdf();
   };
 
+  const handleShareRequest = () => {
+    if (salesProfile?.name && salesProfile.sales_code) {
+      void handleSharePdf(salesProfile.name, salesProfile.sales_code);
+      return;
+    }
+
+    setShowShareDialog(true);
+  };
+
   const requestAdminAccess = (action: 'packages' | 'reference') => {
     if (isAdminUnlocked) {
       if (action === 'packages') setShowPackageManager(true);
@@ -532,7 +541,7 @@ function App() {
         onYearChange={setSelectedYear}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
         onDownloadPdf={handleSaveSalesEntry}
-        onSharePdf={() => setShowShareDialog(true)}
+        onSharePdf={handleShareRequest}
         onReset={() => setShowResetConfirm(true)}
         onLogoClick={() => requestAdminAccess('packages')}
         onSalesAccountClick={() => {
@@ -602,7 +611,7 @@ function App() {
           Simpan
         </button>
         <button
-          onClick={() => setShowShareDialog(true)}
+          onClick={handleShareRequest}
           className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           Bagikan
@@ -645,6 +654,8 @@ function App() {
       />
       <ShareSalesDialog
         isOpen={showShareDialog}
+        defaultSalespersonName={salesProfile?.name ?? ''}
+        defaultSalesCode={salesProfile?.sales_code ?? ''}
         onCancel={() => setShowShareDialog(false)}
         onSubmit={({ salespersonName, salesCode }) => {
           void handleSharePdf(salespersonName, salesCode);

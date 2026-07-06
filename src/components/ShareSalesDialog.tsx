@@ -1,16 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Share2, X } from 'lucide-react';
 
 interface ShareSalesDialogProps {
   isOpen: boolean;
+  defaultSalespersonName?: string;
+  defaultSalesCode?: string;
   onCancel: () => void;
   onSubmit: (data: { salespersonName: string; salesCode: string }) => void;
 }
 
-export default function ShareSalesDialog({ isOpen, onCancel, onSubmit }: ShareSalesDialogProps) {
+export default function ShareSalesDialog({
+  isOpen,
+  defaultSalespersonName = '',
+  defaultSalesCode = '',
+  onCancel,
+  onSubmit,
+}: ShareSalesDialogProps) {
   const [salespersonName, setSalespersonName] = useState('');
   const [salesCode, setSalesCode] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setSalespersonName(defaultSalespersonName);
+    setSalesCode(defaultSalesCode);
+    setError('');
+  }, [defaultSalesCode, defaultSalespersonName, isOpen]);
 
   if (!isOpen) return null;
 
