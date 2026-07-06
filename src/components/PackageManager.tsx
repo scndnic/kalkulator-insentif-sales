@@ -360,23 +360,27 @@ export default function PackageManager({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative bg-white dark:bg-gray-900 w-full sm:max-w-4xl lg:max-w-5xl max-h-[90vh] sm:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl border border-gray-100 dark:border-gray-800">
+      <div className="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-950 print:hidden">
+        <div className="flex h-dvh w-full flex-col bg-white dark:bg-gray-950">
           {/* Header */}
-          <div className="flex flex-col gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-base font-bold leading-tight text-gray-900 dark:text-white">Mode Admin</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Atur paket dan pantau user sales.</p>
-            </div>
-            <div className="flex items-center justify-between gap-2 sm:justify-end">
-              <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">
+          <div className="sticky top-0 z-20 border-b border-gray-100 bg-white/95 px-4 py-4 backdrop-blur dark:border-gray-800 dark:bg-gray-950/95 sm:px-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-base font-bold leading-tight text-gray-900 dark:text-white sm:text-lg">Mode Admin</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Atur paket dan pantau user sales.</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-white"
+                aria-label="Keluar dari mode admin"
+                title="Keluar"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          <div className="border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+          <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800 sm:px-6">
             <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
               <button
                 type="button"
@@ -406,7 +410,7 @@ export default function PackageManager({
           </div>
 
           {activePage === 'packages' && (
-            <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+            <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800 sm:px-6">
               <button
                 onClick={() => setConfirmReset(true)}
                 className="flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20 sm:px-3"
@@ -425,7 +429,7 @@ export default function PackageManager({
           )}
 
           {activePage === 'packages' && formMode && (
-            <div className="border-b border-gray-100 bg-gray-50 px-5 py-4 dark:border-gray-800 dark:bg-gray-950/50">
+            <div className="border-b border-gray-100 bg-gray-50 px-4 py-4 dark:border-gray-800 dark:bg-gray-900/50 sm:px-6">
               <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -704,7 +708,7 @@ export default function PackageManager({
           )}
 
           {activePage === 'users' && (
-            <div className="flex-1 overflow-auto px-5 py-4">
+            <div className="flex-1 overflow-auto px-4 py-4 sm:px-6">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Management User</h3>

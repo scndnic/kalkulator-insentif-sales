@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Plus } from 'lucide-react';
 import Header from './components/Header';
 import SummaryCards from './components/SummaryCards';
-import AddSaleForm from './components/AddSaleForm';
+import AddSaleDialog from './components/AddSaleDialog';
 import SalesTable from './components/SalesTable';
 import EmptyState from './components/EmptyState';
 import TargetSimulator from './components/TargetSimulator';
@@ -92,6 +93,7 @@ function App() {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [showPackageManager, setShowPackageManager] = useState(false);
+  const [showAddSaleDialog, setShowAddSaleDialog] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -417,10 +419,6 @@ function App() {
     return () => window.clearTimeout(saveTimer);
   }, [packages, sales, salesUserId, selectedMonth, selectedPeriodId, selectedYear]);
 
-  const scrollToForm = () => {
-    document.getElementById('add-form')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   const handleSharePdf = async (salespersonName: string, salesCode: string) => {
     const pdfBlob = generateSalesPdf({
       sales,
@@ -592,22 +590,30 @@ function App() {
           totalIncome={totalIncome}
         />
 
-        <div id="add-form">
-          <AddSaleForm packages={packages} onAdd={handleAddSale} onLoadSample={handleLoadSample} />
-        </div>
-
         {sales.length === 0 ? (
-          <EmptyState onAdd={scrollToForm} />
+          <EmptyState onAdd={() => setShowAddSaleDialog(true)} />
         ) : (
-          <SalesTable
-            sales={sales}
-            packages={packages}
-            activeTier={activeTier}
-            totalIncentive={totalIncentive}
-            totalSA={totalSA}
-            onQuantityChange={handleQuantityChange}
-            onDelete={handleDelete}
-          />
+          <div className="space-y-3">
+            <div className="flex justify-end print:hidden">
+              <button
+                type="button"
+                onClick={() => setShowAddSaleDialog(true)}
+                className="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-950"
+              >
+                <Plus className="h-4 w-4" />
+                Tambah Penjualan
+              </button>
+            </div>
+            <SalesTable
+              sales={sales}
+              packages={packages}
+              activeTier={activeTier}
+              totalIncentive={totalIncentive}
+              totalSA={totalSA}
+              onQuantityChange={handleQuantityChange}
+              onDelete={handleDelete}
+            />
+          </div>
         )}
 
         <PayoutSections monthly={monthlyPayout} quarterly={quarterlyPayout} />
@@ -658,6 +664,13 @@ function App() {
         onConfirm={handleReset}
         onCancel={() => setShowResetConfirm(false)}
         danger
+      />
+      <AddSaleDialog
+        isOpen={showAddSaleDialog}
+        packages={packages}
+        onAdd={handleAddSale}
+        onLoadSample={handleLoadSample}
+        onClose={() => setShowAddSaleDialog(false)}
       />
       <AdminLoginDialog
         isOpen={showAdminLogin}
