@@ -34,11 +34,22 @@ function parsePeriodId(periodId: string) {
 async function ensurePeriod(periodId: string) {
   if (!supabase) return;
 
-  const { error } = await supabase
+  const { data: existingPeriod, error: selectError } = await supabase
     .from('periods')
-    .upsert(parsePeriodId(periodId), { onConflict: 'id' });
+    .select('id')
+    .eq('id', periodId)
+    .maybeSingle();
 
-  if (error) throw error;
+  if (selectError) throw selectError;
+  if (existingPeriod) return;
+
+  const { error: insertError } = await supabase
+    .from('periods')
+    .insert(parsePeriodId(periodId));
+
+  if (insertError) {
+    throw new Error('Periode belum bisa dibuat otomatis. Jalankan ulang supabase-growth-schema.sql di Supabase SQL Editor.');
+  }
 }
 
 export async function loadSalesEntry(userId: string, periodId: string) {

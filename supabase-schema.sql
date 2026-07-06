@@ -31,13 +31,13 @@ drop policy if exists "Allow public read incentive packages" on public.incentive
 create policy "Allow public read incentive packages"
 on public.incentive_packages
 for select
-to anon
+to public
 using (true);
 
 drop policy if exists "Allow public write incentive packages" on public.incentive_packages;
 create policy "Allow public write incentive packages"
 on public.incentive_packages
 for all
-to anon
+to public
 using (true)
 with check (true);
