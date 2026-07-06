@@ -257,6 +257,12 @@ on public.periods for select
 to authenticated
 using (true);
 
+drop policy if exists "Authenticated users can create periods" on public.periods;
+create policy "Authenticated users can create periods"
+on public.periods for insert
+to authenticated
+with check (true);
+
 drop policy if exists "Admins can manage periods" on public.periods;
 create policy "Admins can manage periods"
 on public.periods for all

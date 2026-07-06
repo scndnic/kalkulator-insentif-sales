@@ -16,6 +16,31 @@ export function getPeriodId(year: number, month: number) {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
+function parsePeriodId(periodId: string) {
+  const [yearText, monthText] = periodId.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  if (!year || !month || month < 1 || month > 12) {
+    throw new Error('Periode tidak valid.');
+  }
+  return {
+    id: periodId,
+    year,
+    month,
+    quarter: Math.floor((month - 1) / 3) + 1,
+  };
+}
+
+async function ensurePeriod(periodId: string) {
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from('periods')
+    .upsert(parsePeriodId(periodId), { onConflict: 'id' });
+
+  if (error) throw error;
+}
+
 export async function loadSalesEntry(userId: string, periodId: string) {
   if (!supabase) return null;
 
@@ -70,6 +95,8 @@ export async function saveSalesEntry(
   packages: IncentivePackage[],
 ) {
   if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+
+  await ensurePeriod(periodId);
 
   const { data: entry, error: entryError } = await supabase
     .from('sales_entries')

@@ -16,12 +16,17 @@ type SignUpResult = {
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (!error) return fallback;
-  if (error instanceof Error && error.message && error.message !== '{}') return error.message;
   if (typeof error === 'object') {
     const record = error as Record<string, unknown>;
+    const status = record.status;
+    const name = record.name;
+    if ((status === 500 || status === '500') && name === 'AuthRetryableFetchError') {
+      return 'Supabase Auth menolak pendaftaran. Coba gunakan password yang lebih unik dan bukan password umum.';
+    }
     const message = record.message || record.error_description || record.error;
     if (typeof message === 'string' && message && message !== '{}') return message;
   }
+  if (error instanceof Error && error.message && error.message !== '{}') return error.message;
   if (typeof error === 'string' && error && error !== '{}') return error;
   return fallback;
 }
