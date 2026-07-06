@@ -4,6 +4,7 @@ import { IncentivePackage, UpressRate, UpressTierKey } from '../types/incentive'
 import { DEFAULT_PACKAGES, DEFAULT_UPRESS_RATES } from '../data/incentives';
 import { formatCurrency } from '../utils/formatCurrency';
 import ConfirmDialog from './ConfirmDialog';
+import CustomSelect from './CustomSelect';
 
 interface PackageManagerProps {
   packages: IncentivePackage[];
@@ -453,17 +454,20 @@ export default function PackageManager({
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
                     <label className="lg:col-span-1">
                       <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Produk</span>
-                      <select
+                      <CustomSelect
                         value={upressFormValues.packageId}
-                        disabled={upressFormMode === 'edit'}
-                        onChange={(event) => setUpressFormValues({ ...upressFormValues, packageId: event.target.value })}
-                        className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:disabled:bg-gray-800"
-                      >
-                        <option value="">Pilih produk</option>
-                        {packages.map((pkg) => (
-                          <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
-                        ))}
-                      </select>
+                        options={[
+                          { value: '', label: 'Pilih produk' },
+                          ...packages.map((pkg) => ({ value: pkg.id, label: pkg.name })),
+                        ]}
+                        onChange={(value) => {
+                          if (upressFormMode === 'edit') return;
+                          setUpressFormValues({ ...upressFormValues, packageId: value });
+                        }}
+                        placeholder="Pilih produk"
+                        className={upressFormMode === 'edit' ? 'pointer-events-none opacity-70' : ''}
+                        buttonClassName="h-11 rounded-xl bg-white dark:bg-gray-900"
+                      />
                     </label>
 
                     {UPRESS_FORM_FIELDS.map(({ key, label }) => (
