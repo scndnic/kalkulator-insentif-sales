@@ -643,6 +643,8 @@ function App() {
           onUpdate={setPackages}
           upressRates={upressRates}
           onUpressUpdate={setUpressRates}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
           onClose={() => setShowPackageManager(false)}
           usedPackageIds={usedPackageIds}
         />
