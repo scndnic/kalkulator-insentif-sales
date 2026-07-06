@@ -82,7 +82,6 @@ function App() {
   const now = new Date();
   const hasLoadedRemotePackages = useRef(!isSupabaseConfigured);
   const hasLoadedRemoteUpress = useRef(!isSupabaseConfigured);
-  const skipNextAutoSalesLoad = useRef(false);
   const autoLoadedSalesKey = useRef('');
   const shouldAutosaveSales = useRef(false);
   const autosaveVersion = useRef(0);
@@ -132,7 +131,12 @@ function App() {
     });
 
     const unsubscribe = onAuthChange((user) => {
+      autoLoadedSalesKey.current = '';
+      shouldAutosaveSales.current = false;
       setSalesUserId(user?.id ?? null);
+      setSales([]);
+      setQuarterSalesByPeriod({});
+      setDeferredSourceSales([]);
       if (!user) {
         setSalesProfile(null);
         setSalesSyncMessage('');
@@ -377,11 +381,6 @@ function App() {
     if (autoLoadedSalesKey.current === key) return;
     autoLoadedSalesKey.current = key;
 
-    if (skipNextAutoSalesLoad.current) {
-      skipNextAutoSalesLoad.current = false;
-      return;
-    }
-
     let cancelled = false;
     setIsSalesSyncing(true);
     loadSalesEntry(salesUserId, selectedPeriodId)
@@ -508,11 +507,11 @@ function App() {
   };
 
   const handleSalesSignIn = async (email: string, password: string) => {
-    skipNextAutoSalesLoad.current = sales.length > 0;
-    if (sales.length > 0) {
-      shouldAutosaveSales.current = true;
-      autosaveVersion.current += 1;
-    }
+    shouldAutosaveSales.current = false;
+    autoLoadedSalesKey.current = '';
+    setSales([]);
+    setQuarterSalesByPeriod({});
+    setDeferredSourceSales([]);
     const user = await signInSales(email, password);
     setSalesUserId(user?.id ?? null);
   };
@@ -527,9 +526,11 @@ function App() {
       await signOutSales();
       setSalesUserId(null);
       setSalesProfile(null);
+      setSales([]);
       setSalesSyncMessage('');
       setSaveToastMessage('');
       shouldAutosaveSales.current = false;
+      autoLoadedSalesKey.current = '';
       setQuarterSalesByPeriod({});
       setDeferredSourceSales([]);
       setShowSalesAccount(false);
