@@ -1,4 +1,4 @@
-import { Moon, Sun, Save, RotateCcw, Share2, UserCircle } from 'lucide-react';
+import { Moon, Sun, RotateCcw, Share2, UserCircle } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 
 const MONTHS = [
@@ -13,7 +13,6 @@ interface HeaderProps {
   onMonthChange: (month: number) => void;
   onYearChange: (year: number) => void;
   onToggleDarkMode: () => void;
-  onDownloadPdf: () => void;
   onSharePdf: () => void;
   onReset: () => void;
   onLogoClick: () => void;
@@ -29,7 +28,6 @@ export default function Header({
   onMonthChange,
   onYearChange,
   onToggleDarkMode,
-  onDownloadPdf,
   onSharePdf,
   onReset,
   onLogoClick,
@@ -93,13 +91,6 @@ export default function Header({
             />
 
             <div className="flex items-center gap-1 ml-1">
-              <button
-                onClick={onDownloadPdf}
-                title="Simpan Data"
-                className="hidden lg:flex p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
-              >
-                <Save className="w-4 h-4" />
-              </button>
               <button
                 onClick={onSharePdf}
                 title="Bagikan PDF"

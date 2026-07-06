@@ -1,4 +1,4 @@
-import { Cloud, DownloadCloud, LogIn, LogOut, Save, X } from 'lucide-react';
+import { Cloud, DownloadCloud, LogIn, LogOut, X } from 'lucide-react';
 import { SalesProfile } from '../services/authStore';
 
 interface SalesAccountDialogProps {
@@ -8,7 +8,6 @@ interface SalesAccountDialogProps {
   isSyncing: boolean;
   lastSavedLabel: string;
   onLogin: () => void;
-  onSave: () => void;
   onLoad: () => void;
   onSignOut: () => void;
   onClose: () => void;
@@ -21,7 +20,6 @@ export default function SalesAccountDialog({
   isSyncing,
   lastSavedLabel,
   onLogin,
-  onSave,
   onLoad,
   onSignOut,
   onClose,
@@ -39,7 +37,7 @@ export default function SalesAccountDialog({
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-white">Akun Sales</h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {profile ? 'Data input bulanan online' : 'Login untuk menyimpan data'}
+                {profile ? 'Data input bulanan autosave' : 'Login untuk menyimpan data'}
               </p>
             </div>
           </div>
@@ -60,7 +58,7 @@ export default function SalesAccountDialog({
             </p>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {profile
-                ? `${profile.sales_code || 'SC belum diisi'} · ${lastSavedLabel || 'Data bulanan siap disimpan'}`
+                ? `${profile.sales_code || 'SC belum diisi'} · ${lastSavedLabel || 'Autosave aktif'}`
                 : isConfigured
                   ? 'Masuk atau daftar akun sales untuk menyimpan input per bulan.'
                   : 'Supabase belum dikonfigurasi.'}
@@ -68,7 +66,7 @@ export default function SalesAccountDialog({
           </div>
 
           {profile ? (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={onLoad}
@@ -77,15 +75,6 @@ export default function SalesAccountDialog({
               >
                 <DownloadCloud className="h-4 w-4" />
                 Muat
-              </button>
-              <button
-                type="button"
-                onClick={onSave}
-                disabled={isSyncing}
-                className="flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-3 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-60"
-              >
-                <Save className="h-4 w-4" />
-                Simpan
               </button>
               <button
                 type="button"

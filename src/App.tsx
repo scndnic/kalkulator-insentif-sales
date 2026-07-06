@@ -83,6 +83,8 @@ function App() {
   const hasLoadedRemoteUpress = useRef(!isSupabaseConfigured);
   const skipNextAutoSalesLoad = useRef(false);
   const autoLoadedSalesKey = useRef('');
+  const shouldAutosaveSales = useRef(false);
+  const autosaveVersion = useRef(0);
   const [darkMode, setDarkMode] = useState(false);
   const [packages, setPackages] = useState<IncentivePackage[]>(loadStoredPackages);
   const [upressRates, setUpressRates] = useState<UpressRate[]>(loadStoredUpressRates);
@@ -260,7 +262,10 @@ function App() {
   }, [saveToastMessage]);
 
   const markSalesDraft = useCallback(() => {
-    if (salesUserId) setSalesSyncMessage('Ada perubahan belum disimpan');
+    if (!salesUserId) return;
+    shouldAutosaveSales.current = true;
+    autosaveVersion.current += 1;
+    setSalesSyncMessage('Menyimpan otomatis...');
   }, [salesUserId]);
 
   const handleAddSale = useCallback((packageId: string, quantity: number) => {
@@ -383,6 +388,35 @@ function App() {
     };
   }, [salesUserId, selectedPeriodId, selectedMonth, selectedYear]);
 
+  useEffect(() => {
+    if (!salesUserId || !shouldAutosaveSales.current) return;
+
+    const salesSnapshot = sales;
+    const periodSnapshot = selectedPeriodId;
+    const monthName = MONTHS[selectedMonth - 1];
+    const yearSnapshot = selectedYear;
+    const versionSnapshot = autosaveVersion.current;
+
+    const saveTimer = window.setTimeout(() => {
+      setIsSalesSyncing(true);
+      saveSalesEntry(salesUserId, periodSnapshot, salesSnapshot, packages)
+        .then(() => {
+          if (autosaveVersion.current === versionSnapshot) shouldAutosaveSales.current = false;
+          setQuarterSalesByPeriod((prev) => ({ ...prev, [periodSnapshot]: salesSnapshot }));
+          setSalesSyncMessage(`Tersimpan otomatis untuk ${monthName} ${yearSnapshot}`);
+          setSaveToastMessage(`Data ${monthName} ${yearSnapshot} otomatis tersimpan.`);
+        })
+        .catch((error) => {
+          setSalesSyncMessage(error instanceof Error ? error.message : 'Gagal menyimpan otomatis.');
+        })
+        .finally(() => {
+          setIsSalesSyncing(false);
+        });
+    }, 700);
+
+    return () => window.clearTimeout(saveTimer);
+  }, [packages, sales, salesUserId, selectedMonth, selectedPeriodId, selectedYear]);
+
   const scrollToForm = () => {
     document.getElementById('add-form')?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -464,6 +498,10 @@ function App() {
 
   const handleSalesSignIn = async (email: string, password: string) => {
     skipNextAutoSalesLoad.current = sales.length > 0;
+    if (sales.length > 0) {
+      shouldAutosaveSales.current = true;
+      autosaveVersion.current += 1;
+    }
     const user = await signInSales(email, password);
     setSalesUserId(user?.id ?? null);
   };
@@ -480,28 +518,10 @@ function App() {
       setSalesProfile(null);
       setSalesSyncMessage('');
       setSaveToastMessage('');
+      shouldAutosaveSales.current = false;
       setQuarterSalesByPeriod({});
       setDeferredSourceSales([]);
       setShowSalesAccount(false);
-    } finally {
-      setIsSalesSyncing(false);
-    }
-  };
-
-  const handleSaveSalesEntry = async () => {
-    if (!salesUserId) {
-      setShowSalesAuth(true);
-      return;
-    }
-
-    setIsSalesSyncing(true);
-    try {
-      await saveSalesEntry(salesUserId, selectedPeriodId, sales, packages);
-      setQuarterSalesByPeriod((prev) => ({ ...prev, [selectedPeriodId]: sales }));
-      setSalesSyncMessage(`Tersimpan untuk ${MONTHS[selectedMonth - 1]} ${selectedYear}`);
-      setSaveToastMessage(`Data ${MONTHS[selectedMonth - 1]} ${selectedYear} sudah disimpan ke database.`);
-    } catch (error) {
-      setSalesSyncMessage(error instanceof Error ? error.message : 'Gagal menyimpan data sales.');
     } finally {
       setIsSalesSyncing(false);
     }
@@ -540,7 +560,6 @@ function App() {
         onMonthChange={setSelectedMonth}
         onYearChange={setSelectedYear}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
-        onDownloadPdf={handleSaveSalesEntry}
         onSharePdf={handleShareRequest}
         onReset={() => setShowResetConfirm(true)}
         onLogoClick={() => requestAdminAccess('packages')}
@@ -605,14 +624,8 @@ function App() {
       {/* Mobile and tablet bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-4 py-3 flex gap-3 lg:hidden print:hidden z-30">
         <button
-          onClick={handleSaveSalesEntry}
-          className="flex-1 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700"
-        >
-          Simpan
-        </button>
-        <button
           onClick={handleShareRequest}
-          className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          className="flex-1 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700"
         >
           Bagikan
         </button>
@@ -638,7 +651,7 @@ function App() {
       <ConfirmDialog
         isOpen={showResetConfirm}
         title="Reset Perhitungan?"
-        message="Data penjualan pada layar akan dikosongkan. Data database tidak berubah sampai Anda menekan Simpan lagi."
+        message={salesUserId ? 'Data penjualan bulan ini akan dikosongkan dan otomatis disimpan ke database.' : 'Data penjualan sesi sementara pada layar akan dikosongkan.'}
         confirmLabel="Ya, Reset"
         onConfirm={handleReset}
         onCancel={() => setShowResetConfirm(false)}
@@ -677,7 +690,6 @@ function App() {
           setShowSalesAccount(false);
           setShowSalesAuth(true);
         }}
-        onSave={handleSaveSalesEntry}
         onLoad={handleLoadSalesEntry}
         onSignOut={() => {
           void handleSalesSignOut();
