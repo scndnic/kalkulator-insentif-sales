@@ -438,6 +438,8 @@ function App() {
       activeTier,
       totalSA,
       totalIncentive,
+      monthlyPayout,
+      quarterlyPayout,
       selectedMonthName: MONTHS[selectedMonth - 1],
       selectedYear,
       salespersonName,

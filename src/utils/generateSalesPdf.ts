@@ -2,8 +2,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { IncentivePackage, IncentiveTier, SaleItem } from '../types/incentive';
 import { formatCurrency } from './formatCurrency';
-import { getTierLabel } from './getTier';
 import { calculatePriceWithPpn } from './pricing';
+import { MonthlyPayout, QuarterlyPayout } from './payoutEngine';
 
 interface GenerateSalesPdfOptions {
   sales: SaleItem[];
@@ -11,6 +11,8 @@ interface GenerateSalesPdfOptions {
   activeTier: IncentiveTier;
   totalSA: number;
   totalIncentive: number;
+  monthlyPayout?: MonthlyPayout;
+  quarterlyPayout?: QuarterlyPayout;
   selectedMonthName: string;
   selectedYear: number;
   salespersonName?: string;
@@ -28,6 +30,8 @@ export function generateSalesPdf({
   activeTier,
   totalSA,
   totalIncentive,
+  monthlyPayout,
+  quarterlyPayout,
   selectedMonthName,
   selectedYear,
   salespersonName,
@@ -37,8 +41,12 @@ export function generateSalesPdf({
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 14;
-  const pay80 = Math.round(totalIncentive * 0.8);
-  const pay20 = Math.round(totalIncentive * 0.2);
+  const paidIncentive = monthlyPayout?.monthlyIncome ?? Math.round(totalIncentive * 0.8);
+  const currentMonth80 = monthlyPayout?.firstMonthAmount ?? Math.round(totalIncentive * 0.8);
+  const saved20 = monthlyPayout?.deferredAmount ?? Math.round(totalIncentive * 0.2);
+  const deferred20 = monthlyPayout?.deferredSourceAmount ?? 0;
+  const upressPaid = quarterlyPayout?.totalAmount ?? 0;
+  const totalIncome = paidIncentive + upressPaid;
   const generatedAt = new Date().toLocaleString('id-ID');
 
   doc.setFillColor(31, 41, 55);
@@ -55,17 +63,18 @@ export function generateSalesPdf({
     doc.text(`Sales: ${salespersonName || '-'}${salesCode ? ` | SC: ${salesCode}` : ''}`, pageWidth - margin, 23, { align: 'right' });
   }
 
-  const summaryTop = 44;
-  const cardWidth = (pageWidth - margin * 2 - 9) / 4;
+  const summaryTop = 42;
+  const cardWidth = (pageWidth - margin * 2 - 8) / 5;
   const summary = [
-    ['Total SA', `${totalSA} SA`],
-    ['Tier Aktif', getTierLabel(activeTier)],
-    ['Total Insentif', formatCurrency(totalIncentive)],
-    ['Rata-rata / SA', totalSA > 0 ? formatCurrency(totalIncentive / totalSA) : formatCurrency(0)],
+    ['SA Bulan Ini', `${totalSA} SA`],
+    ['SA Triwulan', `${quarterlyPayout?.totalQuarterSA ?? totalSA} SA`],
+    ['Insentif Dibayar', formatCurrency(paidIncentive)],
+    ['Upress Dibayar', formatCurrency(upressPaid)],
+    ['Total Pendapatan', formatCurrency(totalIncome)],
   ];
 
   summary.forEach(([label, value], index) => {
-    const x = margin + index * (cardWidth + 3);
+    const x = margin + index * (cardWidth + 2);
     doc.setDrawColor(229, 231, 235);
     doc.setFillColor(249, 250, 251);
     doc.roundedRect(x, summaryTop, cardWidth, 22, 2, 2, 'FD');
@@ -95,7 +104,7 @@ export function generateSalesPdf({
   });
 
   autoTable(doc, {
-    startY: 76,
+    startY: 72,
     head: [['No', 'Paket', 'Harga Produk', 'Harga + PPN', 'Jumlah', 'Insentif / SA', 'Subtotal']],
     body: rows.length ? rows : [['-', 'Belum ada data penjualan', '-', '-', '-', '-', '-']],
     foot: [['', 'Total', '', '', `${totalSA} SA`, '', formatCurrency(totalIncentive)]],
@@ -115,20 +124,57 @@ export function generateSalesPdf({
   });
 
   const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 92;
-  const boxTop = finalY + 8;
+  const boxTop = finalY + 7;
   doc.setDrawColor(229, 231, 235);
   doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, boxTop, pageWidth - margin * 2, 32, 2, 2, 'FD');
+  doc.roundedRect(margin, boxTop, pageWidth - margin * 2, 38, 2, 2, 'FD');
   doc.setTextColor(17, 24, 39);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Skema Pembayaran', margin + 4, boxTop + 8);
+  doc.text('Skema Insentif Bulanan', margin + 4, boxTop + 8);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`80% dibayarkan bulan pertama: ${formatCurrency(pay80)}`, margin + 4, boxTop + 17);
-  doc.text(`20% dibayarkan bulan ketiga: ${formatCurrency(pay20)}`, margin + 4, boxTop + 25);
+  doc.text(`Insentif bulan ini (100%): ${formatCurrency(totalIncentive)}`, margin + 4, boxTop + 16);
+  doc.text(`80% dibayarkan bulan ini: ${formatCurrency(currentMonth80)}`, margin + 4, boxTop + 24);
+  doc.text(`20% disimpan: ${formatCurrency(saved20)}`, margin + 4, boxTop + 32);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Total: ${formatCurrency(totalIncentive)}`, pageWidth - margin - 4, boxTop + 25, { align: 'right' });
+  doc.text(`20% masuk dari ${monthlyPayout?.deferredSourcePeriod.label ?? '-'}: ${formatCurrency(deferred20)}`, pageWidth - margin - 4, boxTop + 24, { align: 'right' });
+  doc.text(`Total insentif dibayar: ${formatCurrency(paidIncentive)}`, pageWidth - margin - 4, boxTop + 32, { align: 'right' });
+
+  const upressRows = quarterlyPayout?.rows.map((row) => [
+    row.label,
+    `${row.totalSA} SA`,
+    row.tierLabel,
+    `${formatCurrency(row.baseAmount)} x ${row.percentage}%`,
+    formatCurrency(row.amount),
+  ]) ?? [];
+
+  autoTable(doc, {
+    startY: boxTop + 46,
+    head: [['Periode Upress', 'SA', 'Tier', 'Perhitungan', 'Nominal']],
+    body: upressRows.length ? upressRows : [['-', '0 SA', '<10 SA', '-', formatCurrency(0)]],
+    foot: [['Total Upress Dibayar', `${quarterlyPayout?.totalQuarterSA ?? 0} SA`, '', '', formatCurrency(upressPaid)]],
+    theme: 'grid',
+    headStyles: { fillColor: [124, 58, 237], textColor: 255, fontStyle: 'bold' },
+    footStyles: { fillColor: [243, 244, 246], textColor: [17, 24, 39], fontStyle: 'bold' },
+    styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.2 },
+    columnStyles: {
+      1: { halign: 'center' },
+      3: { halign: 'right' },
+      4: { halign: 'right' },
+    },
+    margin: { left: margin, right: margin },
+  });
+
+  const incomeY = ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? boxTop + 66) + 7;
+  doc.setDrawColor(221, 214, 254);
+  doc.setFillColor(245, 243, 255);
+  doc.roundedRect(margin, incomeY, pageWidth - margin * 2, 16, 2, 2, 'FD');
+  doc.setTextColor(76, 29, 149);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text(`Total Pendapatan Bulan Ini: ${formatCurrency(totalIncome)}`, pageWidth - margin - 4, incomeY + 10, { align: 'right' });
+  doc.text(`Insentif ${formatCurrency(paidIncentive)} + Upress ${formatCurrency(upressPaid)}`, margin + 4, incomeY + 10);
 
   const pageCount = doc.getNumberOfPages();
   for (let page = 1; page <= pageCount; page += 1) {
