@@ -38,18 +38,47 @@ export async function ensureSalesProfile(user: User, fallbackName?: string, fall
   const name = String(fallbackName || metadata.name || user.email?.split('@')[0] || 'Sales').trim();
   const salesCode = String(fallbackSalesCode || metadata.sales_code || '').trim();
 
-  const { error } = await supabase
+  const { data: existingProfile, error: readError } = await supabase
     .from('sales_profiles')
-    .upsert({
+    .select('id,name,sales_code,role,is_active')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (readError) {
+    throw new Error(getErrorMessage(readError, 'Profil sales gagal dibaca.'));
+  }
+
+  if (existingProfile) {
+    const shouldFillName = !existingProfile.name && name;
+    const shouldFillSalesCode = !existingProfile.sales_code && salesCode;
+    if (!shouldFillName && !shouldFillSalesCode) return;
+
+    const { error: updateError } = await supabase
+      .from('sales_profiles')
+      .update({
+        name: shouldFillName ? name : existingProfile.name,
+        sales_code: shouldFillSalesCode ? salesCode : existingProfile.sales_code,
+      })
+      .eq('id', user.id);
+
+    if (updateError) {
+      throw new Error(getErrorMessage(updateError, 'Profil sales gagal dilengkapi.'));
+    }
+    return;
+  }
+
+  const { error: insertError } = await supabase
+    .from('sales_profiles')
+    .insert({
       id: user.id,
       name,
       sales_code: salesCode || null,
       role: 'sales',
       is_active: true,
-    }, { onConflict: 'id' });
+    });
 
-  if (error) {
-    throw new Error(getErrorMessage(error, 'Akun berhasil dibuat, tetapi profil sales gagal disimpan.'));
+  if (insertError) {
+    throw new Error(getErrorMessage(insertError, 'Akun berhasil dibuat, tetapi profil sales gagal disimpan.'));
   }
 }
 
