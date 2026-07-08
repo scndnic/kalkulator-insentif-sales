@@ -21,6 +21,8 @@ interface PackageManagerProps {
   selectedMonth: number;
   selectedYear: number;
   syncMessage: string;
+  canManageUsers: boolean;
+  userAccessMessage: string;
   onClose: () => void;
   usedPackageIds: string[];
 }
@@ -81,6 +83,8 @@ export default function PackageManager({
   selectedMonth,
   selectedYear,
   syncMessage,
+  canManageUsers,
+  userAccessMessage,
   onClose,
   usedPackageIds,
 }: PackageManagerProps) {
@@ -357,8 +361,13 @@ export default function PackageManager({
   }, [draggedId, packages]);
 
   useEffect(() => {
-    if (activePage === 'users') loadUsers();
-  }, [activePage, selectedMonth, selectedYear, packages, upressRates]);
+    if (activePage === 'users' && canManageUsers) loadUsers();
+    if (activePage === 'users' && !canManageUsers) {
+      setUserRows([]);
+      setUserError('');
+      closeUserForm();
+    }
+  }, [activePage, selectedMonth, selectedYear, packages, upressRates, canManageUsers]);
 
   return (
     <>
@@ -726,26 +735,34 @@ export default function PackageManager({
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Management User</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Kelola profil sales dan lihat ringkasan pendapatan triwulan.</p>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={loadUsers}
-                    className="h-10 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                  >
-                    Refresh
-                  </button>
-                  <button
-                    type="button"
-                    onClick={startAddUser}
-                    className="flex h-10 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-xs font-medium text-white transition-colors hover:bg-brand-700"
-                  >
+	                <div className="flex gap-2">
+	                  <button
+	                    type="button"
+	                    onClick={loadUsers}
+	                    disabled={!canManageUsers}
+	                    className="h-10 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+	                  >
+	                    Refresh
+	                  </button>
+	                  <button
+	                    type="button"
+	                    onClick={startAddUser}
+	                    disabled={!canManageUsers}
+	                    className="flex h-10 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-xs font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+	                  >
                     <Plus className="h-3.5 w-3.5" />
                     Tambah User
                   </button>
-                </div>
-              </div>
+	                </div>
+	              </div>
 
-              {userFormMode && (
+	              {!canManageUsers && (
+	                <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-700 dark:border-amber-900 dark:bg-amber-900/20 dark:text-amber-300">
+	                  {userAccessMessage}
+	                </div>
+	              )}
+
+	              {canManageUsers && userFormMode && (
                 <div className="mb-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/50">
                   <div className="mb-3">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -856,11 +873,16 @@ export default function PackageManager({
                         <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Memuat user...</td>
                       </tr>
                     )}
-                    {!isLoadingUsers && userRows.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Belum ada data user yang bisa ditampilkan.</td>
-                      </tr>
-                    )}
+	                    {!isLoadingUsers && canManageUsers && userRows.length === 0 && (
+	                      <tr>
+	                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Belum ada data user yang bisa ditampilkan.</td>
+	                      </tr>
+	                    )}
+	                    {!isLoadingUsers && !canManageUsers && (
+	                      <tr>
+	                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Login akun online dengan role admin untuk melihat data user.</td>
+	                      </tr>
+	                    )}
                     {!isLoadingUsers && userRows.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                         <td className="px-4 py-3">

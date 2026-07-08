@@ -152,23 +152,23 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.sales_profiles (id, name, sales_code, role)
-  values (
-    new.id,
+	  insert into public.sales_profiles (id, name, sales_code, role)
+	  values (
+	    new.id,
     coalesce(
       nullif(new.raw_user_meta_data ->> 'name', ''),
       nullif(new.raw_user_meta_data ->> 'full_name', ''),
       split_part(new.email, '@', 1),
       'Sales'
-    ),
-    nullif(new.raw_user_meta_data ->> 'sales_code', ''),
-    'sales'
-  )
-  on conflict (id) do update
-  set
-    name = excluded.name,
-    sales_code = coalesce(public.sales_profiles.sales_code, excluded.sales_code),
-    updated_at = now();
+	    ),
+	    nullif(new.raw_user_meta_data ->> 'sales_code', ''),
+	    coalesce(nullif(new.raw_user_meta_data ->> 'role', ''), 'sales')
+	  )
+	  on conflict (id) do update
+	  set
+	    name = excluded.name,
+	    sales_code = coalesce(public.sales_profiles.sales_code, excluded.sales_code),
+	    updated_at = now();
 
   return new;
 end;
@@ -176,8 +176,27 @@ $$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
-after insert on auth.users
+after insert or update of raw_user_meta_data, email on auth.users
 for each row execute function public.handle_new_user();
+
+insert into public.sales_profiles (id, name, sales_code, role, is_active)
+select
+  users.id,
+  coalesce(
+    nullif(users.raw_user_meta_data ->> 'name', ''),
+    nullif(users.raw_user_meta_data ->> 'full_name', ''),
+    split_part(users.email, '@', 1),
+    'Sales'
+  ),
+  nullif(users.raw_user_meta_data ->> 'sales_code', ''),
+  coalesce(nullif(users.raw_user_meta_data ->> 'role', ''), 'sales'),
+  true
+from auth.users
+on conflict (id) do update
+set
+  name = excluded.name,
+  sales_code = coalesce(public.sales_profiles.sales_code, excluded.sales_code),
+  updated_at = now();
 
 drop trigger if exists set_sales_profiles_updated_at on public.sales_profiles;
 create trigger set_sales_profiles_updated_at

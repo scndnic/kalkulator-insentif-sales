@@ -31,7 +31,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-async function ensureSalesProfile(user: User, fallbackName?: string, fallbackSalesCode?: string) {
+export async function ensureSalesProfile(user: User, fallbackName?: string, fallbackSalesCode?: string) {
   if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
 
   const metadata = user.user_metadata as Record<string, unknown>;

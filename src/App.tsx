@@ -26,6 +26,7 @@ import { saveUpressRatesToSupabase, seedUpressRatesIfEmpty } from './services/up
 import { isSupabaseConfigured } from './services/supabaseClient';
 import {
   SalesProfile,
+  ensureSalesProfile,
   fetchSalesProfile,
   getCurrentUser,
   onAuthChange,
@@ -127,7 +128,16 @@ function App() {
 
     let cancelled = false;
     getCurrentUser().then((user) => {
-      if (!cancelled) setSalesUserId(user?.id ?? null);
+      if (!user) {
+        if (!cancelled) setSalesUserId(null);
+        return;
+      }
+
+      ensureSalesProfile(user)
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) setSalesUserId(user.id);
+        });
     });
 
     const unsubscribe = onAuthChange((user) => {
@@ -140,7 +150,10 @@ function App() {
       if (!user) {
         setSalesProfile(null);
         setSalesSyncMessage('');
+        return;
       }
+
+      ensureSalesProfile(user).catch(() => undefined);
     });
 
     return () => {
@@ -668,6 +681,10 @@ function App() {
           selectedMonth={selectedMonth}
           selectedYear={selectedYear}
           syncMessage={adminDataMessage}
+          canManageUsers={salesProfile?.role === 'admin'}
+          userAccessMessage={salesUserId
+            ? 'Management User hanya bisa dibuka oleh akun online dengan role admin di tabel sales_profiles.'
+            : 'Management User membutuhkan login akun online dengan role admin di tabel sales_profiles.'}
           onClose={() => setShowPackageManager(false)}
           usedPackageIds={usedPackageIds}
         />
