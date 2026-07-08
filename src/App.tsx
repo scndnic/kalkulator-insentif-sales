@@ -108,6 +108,7 @@ function App() {
   const [salesSyncMessage, setSalesSyncMessage] = useState('');
   const [adminDataMessage, setAdminDataMessage] = useState('');
   const [saveToastMessage, setSaveToastMessage] = useState('');
+  const [saveToastStatus, setSaveToastStatus] = useState<'success' | 'error'>('success');
   const [pendingAdminAction, setPendingAdminAction] = useState<'packages' | 'reference' | null>(null);
 
   useEffect(() => {
@@ -431,10 +432,14 @@ function App() {
           if (autosaveVersion.current === versionSnapshot) shouldAutosaveSales.current = false;
           setQuarterSalesByPeriod((prev) => ({ ...prev, [periodSnapshot]: salesSnapshot }));
           setSalesSyncMessage(`Tersimpan otomatis untuk ${monthName} ${yearSnapshot}`);
+          setSaveToastStatus('success');
           setSaveToastMessage(`Data ${monthName} ${yearSnapshot} otomatis tersimpan.`);
         })
         .catch((error) => {
-          setSalesSyncMessage(error instanceof Error ? error.message : 'Gagal menyimpan otomatis.');
+          const errorMessage = error instanceof Error ? error.message : 'Gagal menyimpan otomatis.';
+          setSalesSyncMessage(errorMessage);
+          setSaveToastStatus('error');
+          setSaveToastMessage(errorMessage);
         })
         .finally(() => {
           setIsSalesSyncing(false);
@@ -544,6 +549,7 @@ function App() {
       setSales([]);
       setSalesSyncMessage('');
       setSaveToastMessage('');
+      setSaveToastStatus('success');
       shouldAutosaveSales.current = false;
       autoLoadedSalesKey.current = '';
       setQuarterSalesByPeriod({});
@@ -745,7 +751,11 @@ function App() {
         }}
         onClose={() => setShowSalesAccount(false)}
       />
-      <Toast message={saveToastMessage} onClose={() => setSaveToastMessage('')} />
+      <Toast
+        message={saveToastMessage}
+        status={saveToastStatus}
+        onClose={() => setSaveToastMessage('')}
+      />
     </div>
   );
 }
