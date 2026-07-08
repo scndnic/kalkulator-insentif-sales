@@ -8,3 +8,15 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl!, supabaseAnonKey!)
   : null;
+
+export function createIsolatedSupabaseClient() {
+  if (!isSupabaseConfigured) return null;
+
+  return createClient(supabaseUrl!, supabaseAnonKey!, {
+    auth: {
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      persistSession: false,
+    },
+  });
+}

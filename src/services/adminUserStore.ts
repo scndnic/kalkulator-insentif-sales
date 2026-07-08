@@ -1,7 +1,7 @@
 import { IncentivePackage, SaleItem, UpressRate } from '../types/incentive';
 import { calculateTotalSA } from '../utils/calculateIncentive';
 import { calculateMonthlyPayout, calculateQuarterlyPayout, getQuarterPeriods } from '../utils/payoutEngine';
-import { supabase } from './supabaseClient';
+import { createIsolatedSupabaseClient, supabase } from './supabaseClient';
 
 export type AdminSalesProfile = {
   id: string;
@@ -16,6 +16,11 @@ export type AdminUserSummary = AdminSalesProfile & {
   totalIncentive: number;
   totalUpress: number;
   totalIncome: number;
+};
+
+export type AdminCreateSalesUserInput = Omit<AdminSalesProfile, 'id'> & {
+  email: string;
+  password: string;
 };
 
 type EntryRow = {
@@ -89,6 +94,54 @@ export async function upsertSalesProfile(profile: AdminSalesProfile) {
     .upsert(profile, { onConflict: 'id' });
 
   if (error) throw error;
+}
+
+export async function createSalesAuthUser(input: AdminCreateSalesUserInput) {
+  if (!supabase) throw new Error('Supabase belum dikonfigurasi.');
+
+  const isolatedSupabase = createIsolatedSupabaseClient();
+  if (!isolatedSupabase) throw new Error('Supabase belum dikonfigurasi.');
+
+  const cleanEmail = input.email.trim().toLowerCase();
+  const cleanName = input.name.trim();
+  const cleanSalesCode = input.sales_code?.trim() || null;
+
+  if (!cleanEmail) throw new Error('Email wajib diisi.');
+  if (!cleanName) throw new Error('Nama sales wajib diisi.');
+  if (input.password.length < 6) throw new Error('Password minimal 6 karakter.');
+
+  const { data, error } = await isolatedSupabase.auth.signUp({
+    email: cleanEmail,
+    password: input.password,
+    options: {
+      data: {
+        name: cleanName,
+        sales_code: cleanSalesCode,
+        role: input.role,
+      },
+    },
+  });
+
+  if (error) {
+    if (error.message === '{}') {
+      throw new Error('Supabase Auth menolak pendaftaran. Gunakan email valid dan password yang lebih unik.');
+    }
+    throw error;
+  }
+  if (!data.user) throw new Error('Auth user gagal dibuat.');
+
+  const profile: AdminSalesProfile = {
+    id: data.user.id,
+    name: cleanName,
+    sales_code: cleanSalesCode,
+    role: input.role,
+    is_active: input.is_active,
+  };
+
+  await upsertSalesProfile(profile);
+  await isolatedSupabase.auth.signOut();
+
+  return profile;
 }
 
 export async function deleteSalesProfile(id: string) {

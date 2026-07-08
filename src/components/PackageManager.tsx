@@ -8,6 +8,7 @@ import CustomSelect from './CustomSelect';
 import {
   AdminSalesProfile,
   AdminUserSummary,
+  createSalesAuthUser,
   deleteSalesProfile,
   fetchAdminUserSummaries,
   upsertSalesProfile,
@@ -75,6 +76,11 @@ const EMPTY_USER_FORM: AdminSalesProfile = {
   is_active: true,
 };
 
+const EMPTY_NEW_AUTH_USER = {
+  email: '',
+  password: '',
+};
+
 export default function PackageManager({
   packages,
   onUpdate,
@@ -97,6 +103,7 @@ export default function PackageManager({
   const [upressFormValues, setUpressFormValues] = useState<UpressRate>(EMPTY_UPRESS);
   const [userFormMode, setUserFormMode] = useState<'add' | 'edit' | null>(null);
   const [userFormValues, setUserFormValues] = useState<AdminSalesProfile>(EMPTY_USER_FORM);
+  const [newAuthUserValues, setNewAuthUserValues] = useState(EMPTY_NEW_AUTH_USER);
   const [userRows, setUserRows] = useState<AdminUserSummary[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [userError, setUserError] = useState('');
@@ -175,11 +182,13 @@ export default function PackageManager({
   const startAddUser = () => {
     setUserFormMode('add');
     setUserFormValues(EMPTY_USER_FORM);
+    setNewAuthUserValues(EMPTY_NEW_AUTH_USER);
     setUserFormError('');
   };
 
   const startEditUser = (user: AdminUserSummary) => {
     setUserFormMode('edit');
+    setNewAuthUserValues(EMPTY_NEW_AUTH_USER);
     setUserFormValues({
       id: user.id,
       name: user.name,
@@ -193,6 +202,7 @@ export default function PackageManager({
   const closeUserForm = () => {
     setUserFormMode(null);
     setUserFormValues(EMPTY_USER_FORM);
+    setNewAuthUserValues(EMPTY_NEW_AUTH_USER);
     setUserFormError('');
   };
 
@@ -268,14 +278,14 @@ export default function PackageManager({
   };
 
   const handleSubmitUserForm = () => {
-    const cleanProfile = {
+    const cleanProfile: AdminSalesProfile = {
       ...userFormValues,
       id: userFormValues.id.trim(),
       name: userFormValues.name.trim(),
       sales_code: userFormValues.sales_code?.trim() || null,
     };
 
-    if (!cleanProfile.id) {
+    if (userFormMode === 'edit' && !cleanProfile.id) {
       setUserFormError('Auth User ID wajib diisi.');
       return;
     }
@@ -285,7 +295,18 @@ export default function PackageManager({
     }
 
     setIsLoadingUsers(true);
-    upsertSalesProfile(cleanProfile)
+    const saveUser = userFormMode === 'add'
+      ? createSalesAuthUser({
+        email: newAuthUserValues.email,
+        password: newAuthUserValues.password,
+        name: cleanProfile.name,
+        sales_code: cleanProfile.sales_code,
+        role: cleanProfile.role,
+        is_active: cleanProfile.is_active,
+      })
+      : upsertSalesProfile(cleanProfile);
+
+    saveUser
       .then(() => {
         closeUserForm();
         loadUsers();
@@ -768,19 +789,47 @@ export default function PackageManager({
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">
                       {userFormMode === 'edit' ? 'Edit User' : 'Tambah User'}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Gunakan Auth User ID dari Supabase untuk profil sales yang sudah memiliki akun login.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {userFormMode === 'add'
+                        ? 'Buat akun login sales. Auth User ID akan dibuat otomatis oleh Supabase.'
+                        : 'Edit profil sales yang sudah memiliki akun login.'}
+                    </p>
                   </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-                    <label className="lg:col-span-2">
-                      <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Auth User ID</span>
-                      <input
-                        value={userFormValues.id}
-                        disabled={userFormMode === 'edit'}
-                        onChange={(event) => setUserFormValues({ ...userFormValues, id: event.target.value })}
-                        className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:disabled:bg-gray-800"
-                        placeholder="UUID user dari Supabase Auth"
-                      />
-                    </label>
+                    {userFormMode === 'add' ? (
+                      <>
+                        <label>
+                          <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Email Login</span>
+                          <input
+                            type="email"
+                            value={newAuthUserValues.email}
+                            onChange={(event) => setNewAuthUserValues({ ...newAuthUserValues, email: event.target.value })}
+                            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            placeholder="sales@email.com"
+                          />
+                        </label>
+                        <label>
+                          <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Password Login</span>
+                          <input
+                            type="password"
+                            value={newAuthUserValues.password}
+                            onChange={(event) => setNewAuthUserValues({ ...newAuthUserValues, password: event.target.value })}
+                            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            placeholder="Minimal 6 karakter"
+                          />
+                        </label>
+                      </>
+                    ) : (
+                      <label className="lg:col-span-2">
+                        <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Auth User ID</span>
+                        <input
+                          value={userFormValues.id}
+                          disabled
+                          className="h-11 w-full rounded-xl border border-gray-200 bg-gray-100 px-3 text-sm text-gray-500 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                          placeholder="UUID user dari Supabase Auth"
+                        />
+                      </label>
+                    )}
                     <label>
                       <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama Sales</span>
                       <input
