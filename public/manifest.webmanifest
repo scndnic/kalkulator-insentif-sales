@@ -1,7 +1,7 @@
 {
-  "name": "Kalkulator Insentif Sales MyRepublic",
-  "short_name": "Insentif Sales",
-  "description": "Kalkulator insentif sales MyRepublic yang bisa diinstall sebagai web app.",
+  "name": "Kalkulator Insentif",
+  "short_name": "Insentif",
+  "description": "Kalkulator insentif yang bisa diinstall sebagai web app.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

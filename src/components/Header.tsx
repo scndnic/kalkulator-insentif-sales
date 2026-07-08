@@ -48,7 +48,7 @@ export default function Header({
             <button
               type="button"
               onClick={onLogoClick}
-              title="Kalkulator Insentif Sales MyRepublic"
+              title="Kalkulator Insentif"
               className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-white shadow-md shadow-brand-200 ring-1 ring-gray-100 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-white dark:bg-gray-900 dark:shadow-brand-900 dark:ring-gray-800 dark:focus:ring-offset-gray-900"
             >
               <img
@@ -60,7 +60,7 @@ export default function Header({
             </button>
             <div className="min-w-0 hidden lg:block">
               <h1 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base leading-tight truncate">
-                Kalkulator Insentif Sales MyRepublic
+                Kalkulator Insentif
               </h1>
               <div className="flex items-center gap-2">
                 <span className="text-xs bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded-full font-medium hidden sm:inline-flex">

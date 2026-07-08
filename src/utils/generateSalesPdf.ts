@@ -54,7 +54,7 @@ export function generateSalesPdf({
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('Kalkulator Insentif Sales', margin, 15);
+  doc.text('Kalkulator Insentif', margin, 15);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text(`Periode ${selectedMonthName} ${selectedYear}`, margin, 23);

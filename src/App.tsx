@@ -451,7 +451,7 @@ function App() {
     const safeName = salespersonName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'sales';
     const file = new File([pdfBlob], `insentif-sales-${safeName}-${salesCode}.pdf`, { type: 'application/pdf' });
     const shareData = {
-      title: 'Kalkulator Insentif Sales MyRepublic',
+      title: 'Kalkulator Insentif',
       text: `Estimasi insentif ${salespersonName} (${salesCode})`,
       files: [file],
     };
