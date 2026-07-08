@@ -25,6 +25,27 @@ before update on public.incentive_packages
 for each row
 execute function public.set_updated_at();
 
+create or replace function public.current_user_is_admin()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  return exists (
+    select 1
+    from public.sales_profiles
+    where id = auth.uid()
+      and role = 'admin'
+      and is_active = true
+  );
+exception
+  when undefined_table then
+    return false;
+end;
+$$;
+
 alter table public.incentive_packages enable row level security;
 
 drop policy if exists "Allow public read incentive packages" on public.incentive_packages;
@@ -35,9 +56,10 @@ to public
 using (true);
 
 drop policy if exists "Allow public write incentive packages" on public.incentive_packages;
-create policy "Allow public write incentive packages"
+drop policy if exists "Admins can write incentive packages" on public.incentive_packages;
+create policy "Admins can write incentive packages"
 on public.incentive_packages
 for all
-to public
-using (true)
-with check (true);
+to authenticated
+using (public.current_user_is_admin())
+with check (public.current_user_is_admin());

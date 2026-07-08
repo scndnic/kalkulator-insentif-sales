@@ -9,7 +9,6 @@ import TargetSimulator from './components/TargetSimulator';
 import IncentiveReference from './components/IncentiveReference';
 import PackageManager from './components/PackageManager';
 import ConfirmDialog from './components/ConfirmDialog';
-import AdminLoginDialog from './components/AdminLoginDialog';
 import ShareSalesDialog from './components/ShareSalesDialog';
 import SalesAuthDialog from './components/SalesAuthDialog';
 import SalesAccountDialog from './components/SalesAccountDialog';
@@ -95,8 +94,6 @@ function App() {
   const [showPackageManager, setShowPackageManager] = useState(false);
   const [showAddSaleDialog, setShowAddSaleDialog] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showSalesAuth, setShowSalesAuth] = useState(false);
   const [showSalesAccount, setShowSalesAccount] = useState(false);
@@ -109,7 +106,6 @@ function App() {
   const [adminDataMessage, setAdminDataMessage] = useState('');
   const [saveToastMessage, setSaveToastMessage] = useState('');
   const [saveToastStatus, setSaveToastStatus] = useState<'success' | 'error'>('success');
-  const [pendingAdminAction, setPendingAdminAction] = useState<'packages' | 'reference' | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -510,20 +506,17 @@ function App() {
     setShowShareDialog(true);
   };
 
-  const requestAdminAccess = (action: 'packages' | 'reference') => {
-    if (isAdminUnlocked) {
-      if (action === 'packages') setShowPackageManager(true);
+  const requestAdminAccess = () => {
+    if (!salesUserId) {
+      setShowSalesAuth(true);
       return;
     }
-    setPendingAdminAction(action);
-    setShowAdminLogin(true);
-  };
-
-  const handleAdminSuccess = () => {
-    setIsAdminUnlocked(true);
-    setShowAdminLogin(false);
-    if (pendingAdminAction === 'packages') setShowPackageManager(true);
-    setPendingAdminAction(null);
+    if (salesProfile?.role === 'admin' && salesProfile.is_active) {
+      setShowPackageManager(true);
+      return;
+    }
+    setSalesSyncMessage('Akses admin membutuhkan akun online dengan role admin aktif.');
+    setShowSalesAccount(true);
   };
 
   const handleSalesSignIn = async (email: string, password: string) => {
@@ -595,7 +588,7 @@ function App() {
         onToggleDarkMode={() => setDarkMode(!darkMode)}
         onSharePdf={handleShareRequest}
         onReset={() => setShowResetConfirm(true)}
-        onLogoClick={() => requestAdminAccess('packages')}
+        onLogoClick={requestAdminAccess}
         onSalesAccountClick={() => {
           if (salesUserId) setShowSalesAccount(true);
           else setShowSalesAuth(true);
@@ -678,7 +671,7 @@ function App() {
         </button>
       </div>
 
-      {showPackageManager && (
+      {showPackageManager && salesProfile?.role === 'admin' && salesProfile.is_active && (
         <PackageManager
           packages={packages}
           onUpdate={setPackages}
@@ -711,14 +704,6 @@ function App() {
         onAdd={handleAddSale}
         onLoadSample={handleLoadSample}
         onClose={() => setShowAddSaleDialog(false)}
-      />
-      <AdminLoginDialog
-        isOpen={showAdminLogin}
-        onSuccess={handleAdminSuccess}
-        onCancel={() => {
-          setShowAdminLogin(false);
-          setPendingAdminAction(null);
-        }}
       />
       <ShareSalesDialog
         isOpen={showShareDialog}

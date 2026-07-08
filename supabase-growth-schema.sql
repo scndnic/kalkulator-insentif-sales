@@ -145,6 +145,23 @@ as $$
   );
 $$;
 
+create or replace function public.prevent_profile_privilege_escalation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() = old.id and not public.current_user_is_admin() then
+    new.id = old.id;
+    new.role = old.role;
+    new.is_active = old.is_active;
+  end if;
+
+  return new;
+end;
+$$;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -162,7 +179,7 @@ begin
       'Sales'
 	    ),
 	    nullif(new.raw_user_meta_data ->> 'sales_code', ''),
-	    coalesce(nullif(new.raw_user_meta_data ->> 'role', ''), 'sales')
+	    'sales'
 	  )
 	  on conflict (id) do update
 	  set
@@ -189,7 +206,7 @@ select
     'Sales'
   ),
   nullif(users.raw_user_meta_data ->> 'sales_code', ''),
-  coalesce(nullif(users.raw_user_meta_data ->> 'role', ''), 'sales'),
+  'sales',
   true
 from auth.users
 on conflict (id) do update
@@ -202,6 +219,11 @@ drop trigger if exists set_sales_profiles_updated_at on public.sales_profiles;
 create trigger set_sales_profiles_updated_at
 before update on public.sales_profiles
 for each row execute function public.set_updated_at();
+
+drop trigger if exists prevent_profile_privilege_escalation on public.sales_profiles;
+create trigger prevent_profile_privilege_escalation
+before update on public.sales_profiles
+for each row execute function public.prevent_profile_privilege_escalation();
 
 drop trigger if exists set_sales_entries_updated_at on public.sales_entries;
 create trigger set_sales_entries_updated_at
@@ -260,8 +282,8 @@ drop policy if exists "Sales can update own profile" on public.sales_profiles;
 create policy "Sales can update own profile"
 on public.sales_profiles for update
 to authenticated
-using (id = auth.uid() or public.current_user_is_admin())
-with check (id = auth.uid() or public.current_user_is_admin());
+using (id = auth.uid())
+with check (id = auth.uid());
 
 drop policy if exists "Admins can manage profiles" on public.sales_profiles;
 create policy "Admins can manage profiles"
@@ -280,7 +302,11 @@ drop policy if exists "Authenticated users can create periods" on public.periods
 create policy "Authenticated users can create periods"
 on public.periods for insert
 to authenticated
-with check (true);
+with check (
+  status = 'open'
+  and id = to_char(make_date(year, month, 1), 'YYYY-MM')
+  and quarter = (((month - 1) / 3) + 1)
+);
 
 drop policy if exists "Admins can manage periods" on public.periods;
 create policy "Admins can manage periods"

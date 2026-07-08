@@ -23,8 +23,10 @@ for select
 using (true);
 
 drop policy if exists "Allow public write upress package rates" on public.upress_package_rates;
-create policy "Allow public write upress package rates"
+drop policy if exists "Admins can write upress package rates" on public.upress_package_rates;
+create policy "Admins can write upress package rates"
 on public.upress_package_rates
 for all
-using (true)
-with check (true);
+to authenticated
+using (public.current_user_is_admin())
+with check (public.current_user_is_admin());
